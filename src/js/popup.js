@@ -141,6 +141,22 @@ var cachePopupData = function(data) {
 
 /******************************************************************************/
 
+const getCurrentFeature = (array) => {
+    document.addEventListener("DOMContentLoaded",() => {
+        const allSliderHandle=document.querySelectorAll(".mbsc-slider-handle-cont")
+        const allSwitchTrack=document.querySelectorAll(".mbsc-switch-track")
+        
+        for(let i =0;i<array.length;i++){
+            if(array[i] == true){
+                console.log(i)
+                allSliderHandle[i].style.left='100%'
+                allSwitchTrack[i].classList.add("active")
+            }
+        }
+    })
+    
+}
+
 var hashFromPopupData = function(reset) {
     // It makes no sense to offer to refresh the behind-the-scene scope
     if ( popupData.pageHostname === 'behind-the-scene' ) {
@@ -163,6 +179,7 @@ var hashFromPopupData = function(reset) {
     hasher.push(uDom.nodeFromId('no-remote-fonts').classList.contains('on'));
     hasher.push(uDom.nodeFromId('no-scripting').classList.contains('on'));
     var hash = hasher.join('');
+    getCurrentFeature(hasher)
     if ( reset ) {
         cachedPopupHash = hash;
     }
