@@ -7,7 +7,7 @@ body {
     opacity: 1;
     overflow: hidden;
     padding: 0;
-    white-space: nowrap;
+    /* white-space: nowrap; */
     width: fit-content;
     width: -moz-fit-content;
     }
@@ -30,30 +30,35 @@ a {
     outline: 0;
     }
 #appinfo {
-    align-items: flex-end;
-    background-color: #444;
+    /* background-color: #444;
     border: 0;
     color: #bbb;
-    display: flex;
-    font-size: smaller;
-    justify-content: center;
+    display: block;
+    font-size: 85%;
+    line-height: 1.2;
     margin: 0;
-    padding: 1px 0;
-    width: 100%;
+    padding: calc(0.1em + 1px) 0;
+    position: relative;
+    text-align: center;
+    width: 100%; */
+    }
+#version {
+    font-size: 90%;
+    font-weight: normal;
     }
 
-#panes {
+/* #panes {
     display: flex;
     flex-direction: row-reverse;
-    }
+    } */
 #panes > div {
-    display: inline-block;
+    /* display: inline-block; */
     position: relative;
     vertical-align: top;
     }
-body[dir="ltr"] #panes > div {
+/* body[dir="ltr"] #panes > div {
     direction: ltr;
-    }
+    } */
 body[dir="rtl"] #panes > div {
     direction: rtl;
     }
@@ -63,18 +68,19 @@ body[dir="rtl"] #panes > div {
     overflow-y: auto;
     overflow-x: hidden;
     width: 24em;
+    display: none;
     }
 /**
  Scroll bar to the left.
  */
-body[dir="ltr"] #panes > div:nth-of-type(2) {
+/* body[dir="ltr"] #panes > div:nth-of-type(2) {
     direction: rtl;
     margin-right: 1px;
-    }
-body[dir="rtl"] #panes > div:nth-of-type(2) {
+    } */
+/* body[dir="rtl"] #panes > div:nth-of-type(2) {
     direction: ltr;
     margin-left: 1px;
-    }
+    } */
 #panes:not(.dfEnabled) > div:nth-of-type(2) {
     display: none;
     }
@@ -83,77 +89,72 @@ body[dir="rtl"] #panes > div:nth-of-type(2) {
     padding: 0;
     }
 p {
-    display: flex;
-    justify-content: center;
-    }
-.fa-icon {
-    font-size: 120%;
+    text-align: center;
+    white-space: nowrap;
     }
 .fa {
     font-size: 120%;
     }
 #switch {
-    margin: 0.8em 0;
+    margin: 8px 0;
     }
-#switch .fa-icon {
-    fill: #0046ff;
+#switch .fa {
+    color: #0046ff;
     cursor: pointer;
     font-size: 700%;
     margin: 0;
-    padding: 0;
     }
-#switch .fa-icon:hover {
+#switch .fa:hover {
     opacity: 0.9;
     }
-body.off #switch .fa-icon {
-    fill: #ccc;
+body.off #switch .fa {
+    color: #ccc;
     }
 #basicTools {
-    margin: 1.2em 0 0.5em 0;
+    margin: 0.8em 0 0.4em 0;
     }
 .tool:first-child {
     margin-left: 0;
     }
 .tool {
-    color: #aaa;
-    cursor: pointer;
-    fill: #aaa;
-    margin-left: 0.8em;
+    color: #343434;
+    /* cursor: pointer; */
+    /* visibility: hidden; */
+    /* margin-left: 0.4em;
     min-width: 1em;
-    padding: 0 0.2em;
-    unicode-bidi: embed;
-    visibility: hidden;
+    padding: 0 0.2em; */
+    /* unicode-bidi: embed; */
     }
 .tool.enabled {
     visibility: visible;
     }
 .tool.enabled:hover {
     color: #444;
-    fill: #444;
     }
 #page-blocked {
-    font-size: 1.25em;
+    /* font-size: 1.25em; */
+    font-size: 19px;
     }
 .statName {
-    color: #888;
+    /* color: #888; */
     font-size: 85%;
-    margin: 0.8em 0.2em 0.4em 0.2em;
+    /* margin: 0.8em 0.2em 0.4em 0.2em; */
+    margin: .4em;
+    text-align: center;
     }
 .statValue {
     margin: 0;
+    text-align: center;
+    font-size: 19px;
     }
 #extraTools {
-    background-color: #eee;
-    border: 0;
-    color: #888;
-    display: flex;
-    fill: #888;
-    justify-content: center;
-    margin: 0.8em 0 0 0;
-    padding: 0.2em 0;
-    }
-body.responsive #extraTools {
-    justify-content: space-evenly;
+    /* background-color: #eee; */
+    /* border: 0; */
+    /* color: #888; */
+    /* margin: 0.8em 0 0 0; */
+    margin: .8em;
+    /* padding: 4px 0 4px 0.8em; */
+    text-align: center;
     }
 #extraTools > span {
     cursor: pointer;
@@ -161,46 +162,72 @@ body.responsive #extraTools {
     margin: 0 0.8em 0 0;
     position: relative;
     }
-#extraTools > span:first-of-type {
-    margin-left: 0.9em;
+#extraTools > span > span.badge {
+    color: #222;
+    bottom: -2px;
+    font: x-small sans-serif;
+    position: absolute;
     }
-#extraTools > span > .nope {
+body[dir="ltr"] #extraTools > span > span.badge {
+    /* left: 100%; */
+    }
+body[dir="rtl"] #extraTools > span > span.badge {
+    /* right: 100%; */
+    }
+#extraTools > span > span:last-of-type {
+    color: #e00;
     left: 50%;
     position: absolute;
-    stroke: red;
-    stroke-width: 2;
+    top: 0;
     transform: translateX(-50%);
     visibility: hidden;
+    }
+#extraTools > span > span:last-of-type > svg {
+    stroke: red;
+    stroke-width: 2;
     width: 1em;
     }
-#extraTools > span.on > .nope {
+#extraTools > span.on > span:last-of-type {
     visibility: visible;
     }
 #extraTools > span:hover {
-    color: #222;
-    fill: #222;
+    color: #333;
     }
 
 #refresh {
-    background-color: #ffe;
+    /* background-color: #ffe;
     border: 1px solid #ddc;
     border-radius: 4px;
+    color: #888;
     cursor: pointer;
     display: none;
-    fill: #888;
-    font-size: 3em;
-    justify-content: center;
+    font-size: 3.5em;
     left: 4px;
     line-height: 1;
-    padding: 0.15em;
+    padding: 4px 8px;
     position: absolute;
     right: 4px;
+    text-align: center; */
+        /* background-color: #ffe; */
+    /* border: 1px solid #ddc; */
+    border-radius: 4px;
+    color: #00abff;
+    cursor: pointer;
+    display: none;
+    font-size: 30px;
+    left: 4px;
+    padding: 4px 8px;
+    width: 100%;
+    padding: 2px;
+    position: absolute;
+    z-index: 1000000000000000;
+    top: 60px;
     }
 body.dirty #refresh {
-    display: flex;
+    display: block;
     }
 body.dirty #refresh:hover {
-    fill: #000
+    color: black;
     }
 
 #tooltip {
@@ -282,18 +309,11 @@ body[dir="rtl"] #tooltip {
     text-overflow: ellipsis;
     width: calc(100% - 4em);
     }
-#firewallContainer > div > span:first-of-type > sup {
+#firewallContainer > div.isDomain > span.isIDN:first-of-type > sup:before {
     color: #666;
-    display: none;
+    content: '\0416\2002';
     font-size: 80%;
     font-weight: normal;
-    line-height: 1;
-    }
-#firewallContainer > div.isDomain > span.isIDN:first-of-type > sup {
-    display: inline-block;
-    }
-#firewallContainer > div.isDomain > span.isIDN:first-of-type > sup::before {
-    content: '\0416\2002';
     }
 #firewallContainer > div > span:nth-of-type(2) {
     display: none;
@@ -313,12 +333,12 @@ body[dir="rtl"] #tooltip {
 #firewallContainer > div.isDomain > span:first-of-type {
     font-weight: bold;
     }
-#firewallContainer > div:first-of-type > span:first-of-type::before {
+#firewallContainer > div:first-of-type > span:first-of-type:before {
     color: #aaa;
     content: '\2012';
     padding-right: 0.25em;
     }
-#firewallContainer.minimized > div:first-of-type > span:first-of-type::before {
+#firewallContainer.minimized > div:first-of-type > span:first-of-type:before {
     content: '+';
     }
 #firewallContainer.minimized > div.isDomain > span:nth-of-type(3) {
@@ -327,32 +347,32 @@ body[dir="rtl"] #tooltip {
 #firewallContainer.minimized > div.isDomain > span:nth-of-type(4) {
     display: inline-block;
     }
-#firewallContainer > div > span[data-acount]::before,
-#firewallContainer > div > span[data-bcount]::after {
+#firewallContainer > div > span[data-acount]:before,
+#firewallContainer > div > span[data-bcount]:after {
     position: absolute;
     }
-#firewallContainer > div > span[data-acount]::before {
+#firewallContainer > div > span[data-acount]:before {
     left: 0.1em;
     }
-#firewallContainer > div > span[data-acount="1"]::before {
+#firewallContainer > div > span[data-acount="1"]:before {
     content: '+';
     }
-#firewallContainer > div > span[data-acount="2"]::before {
+#firewallContainer > div > span[data-acount="2"]:before {
     content: '++';
     }
-#firewallContainer > div > span[data-acount="3"]::before {
+#firewallContainer > div > span[data-acount="3"]:before {
     content: '+++';
     }
-#firewallContainer > div > span[data-bcount]::after {
+#firewallContainer > div > span[data-bcount]:after {
     right: 0.1em;
     }
-#firewallContainer > div > span[data-bcount="1"]::after {
+#firewallContainer > div > span[data-bcount="1"]:after {
     content: '\2212';
     }
-#firewallContainer > div > span[data-bcount="2"]::after {
+#firewallContainer > div > span[data-bcount="2"]:after {
     content: '\2212\2212';
     }
-#firewallContainer > div > span[data-bcount="3"]::after {
+#firewallContainer > div > span[data-bcount="3"]:after {
     content: '\2212\2212\2212';
     }
 
@@ -372,10 +392,10 @@ body.advancedUser #firewallContainer > div > span:first-of-type ~ span {
 /**
  Small coloured label at the left of a row
  */
-#firewallContainer > div.allowed > span:first-of-type::before,
-#firewallContainer > div.blocked > span:first-of-type::before,
-#firewallContainer.minimized > div.isDomain.totalAllowed > span:first-of-type::before,
-#firewallContainer.minimized > div.isDomain.totalBlocked > span:first-of-type::before {
+#firewallContainer > div.allowed > span:first-of-type:before,
+#firewallContainer > div.blocked > span:first-of-type:before,
+#firewallContainer.minimized > div.isDomain.totalAllowed > span:first-of-type:before,
+#firewallContainer.minimized > div.isDomain.totalBlocked > span:first-of-type:before {
     box-sizing: border-box;
     content: '';
     display: inline-block;
@@ -389,24 +409,24 @@ body.advancedUser #firewallContainer > div > span:first-of-type ~ span {
  Source for color-blind color scheme from https://github.com/WyohKnott:
  https://github.com/chrisaljoudi/uBlock/issues/467#issuecomment-95177219
  */
-#firewallContainer > div.allowed > span:first-of-type::before,
-#firewallContainer.minimized > div.isDomain.totalAllowed > span:first-of-type::before {
+#firewallContainer > div.allowed > span:first-of-type:before,
+#firewallContainer.minimized > div.isDomain.totalAllowed > span:first-of-type:before {
     background-color: rgb(0, 160, 0);
     }
-#firewallContainer.colorBlind > div.allowed > span:first-of-type::before,
-#firewallContainer.colorBlind.minimized > div.isDomain.totalAllowed > span:first-of-type::before {
+#firewallContainer.colorBlind > div.allowed > span:first-of-type:before,
+#firewallContainer.colorBlind.minimized > div.isDomain.totalAllowed > span:first-of-type:before {
     background-color: rgb(255, 194, 57);
     }
-#firewallContainer > div.blocked > span:first-of-type::before,
-#firewallContainer.minimized > div.isDomain.totalBlocked > span:first-of-type::before {
+#firewallContainer > div.blocked > span:first-of-type:before,
+#firewallContainer.minimized > div.isDomain.totalBlocked > span:first-of-type:before {
     background-color: rgb(192, 0, 0);
     }
-#firewallContainer.colorBlind > div.blocked > span:first-of-type::before,
-#firewallContainer.colorBlind.minimized > div.isDomain.totalBlocked > span:first-of-type::before {
+#firewallContainer.colorBlind > div.blocked > span:first-of-type:before,
+#firewallContainer.colorBlind.minimized > div.isDomain.totalBlocked > span:first-of-type:before {
     background-color: rgb(0, 19, 110);
     }
-#firewallContainer > div.allowed.blocked > span:first-of-type::before,
-#firewallContainer.minimized > div.isDomain.totalAllowed.totalBlocked > span:first-of-type::before {
+#firewallContainer > div.allowed.blocked > span:first-of-type:before,
+#firewallContainer.minimized > div.isDomain.totalAllowed.totalBlocked > span:first-of-type:before {
     background-color: rgb(192, 160, 0);
     }
 /* Rule cells */
@@ -491,7 +511,7 @@ body.advancedUser #firewallContainer > div > span.noopRule.ownRule {
 #rulesetTools {
     background-color: transparent;
     border: 0;
-    fill: #888;
+    color: #888;
     display: none;
     left: 4px;
     padding: 0;
@@ -516,7 +536,7 @@ body.advancedUser #firewallContainer > div > span.noopRule.ownRule {
     display: block;
     }
 #firewallContainer.dirty ~ #rulesetTools > span:hover {
-    fill: black;
+    color: black;
     }
 
 

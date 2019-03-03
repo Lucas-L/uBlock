@@ -29,9 +29,9 @@
 
 /******************************************************************************/
 
-const messaging = vAPI.messaging;
+var messaging = vAPI.messaging;
 
-const mergeView = new CodeMirror.MergeView(
+var mergeView = new CodeMirror.MergeView(
     document.querySelector('.codeMirrorMergeContainer'),
     {
         allowEditingOriginals: true,
@@ -50,52 +50,15 @@ mergeView.leftOriginal().setOption('readOnly', 'nocursor');
 
 uBlockDashboard.patchCodeMirrorEditor(mergeView.editor());
 
-const unfilteredRules = {
+var unfilteredRules = {
     orig: { doc: mergeView.leftOriginal(), rules: [] },
     edit: { doc: mergeView.editor(), rules: [] }
 };
 
-let cleanEditToken = 0;
-let cleanEditText = '';
+var cleanEditToken = 0;
+var cleanEditText = '';
 
-let differ;
-
-/******************************************************************************/
-
-// The following code is to take care of properly internationalizing
-// the tooltips of the arrows used by the CodeMirror merge view. These
-// are hard-coded by CodeMirror ("Push to left", "Push to right"). An
-// observer is necessary because there is no hook for uBO to overwrite
-// reliably the default title attribute assigned by CodeMirror.
-
-(function() {
-    const i18nCommitStr = vAPI.i18n('rulesCommit');
-    const i18nRevertStr = vAPI.i18n('rulesRevert');
-    const commitArrowSelector = '.CodeMirror-merge-copybuttons-left .CodeMirror-merge-copy-reverse:not([title="' + i18nCommitStr + '"])';
-    const revertArrowSelector = '.CodeMirror-merge-copybuttons-left .CodeMirror-merge-copy:not([title="' + i18nRevertStr + '"])';
-
-    uDom.nodeFromSelector('.CodeMirror-merge-scrolllock')
-        .setAttribute('title', vAPI.i18n('genericMergeViewScrollLock'));
-
-    const translate = function() {
-        let elems = document.querySelectorAll(commitArrowSelector);
-        for ( const elem of elems ) {
-            elem.setAttribute('title', i18nCommitStr);
-        }
-        elems = document.querySelectorAll(revertArrowSelector);
-        for ( const elem of elems ) {
-            elem.setAttribute('title', i18nRevertStr);
-        }
-    };
-
-    const mergeGapObserver = new MutationObserver(translate);
-
-    mergeGapObserver.observe(
-        uDom.nodeFromSelector('.CodeMirror-merge-copybuttons-left'),
-        { attributes: true, attributeFilter: [ 'title' ], subtree: true }
-    );
-
-})();
+var differ;
 
 /******************************************************************************/
 
@@ -103,7 +66,7 @@ let differ;
 // https://github.com/codemirror/CodeMirror/blob/3e1bb5fff682f8f6cbfaef0e56c61d62403d4798/addon/search/search.js#L22
 // ... and modified as needed.
 
-const updateOverlay = (function() {
+var updateOverlay = (function() {
     let reFilter;
     let mode = {
         token: function(stream) {
@@ -136,7 +99,7 @@ const updateOverlay = (function() {
 // - Scroll position preserved
 // - Minimum amount of text updated
 
-const rulesToDoc = function(clearHistory) {
+var rulesToDoc = function(clearHistory) {
     for ( let key in unfilteredRules ) {
         if ( unfilteredRules.hasOwnProperty(key) === false ) { continue; }
         let doc = unfilteredRules[key].doc;
@@ -182,7 +145,7 @@ const rulesToDoc = function(clearHistory) {
 
 /******************************************************************************/
 
-const filterRules = function(key) {
+var filterRules = function(key) {
     let rules = unfilteredRules[key].rules;
     let filter = uDom.nodeFromSelector('#ruleFilter input').value;
     if ( filter !== '' ) {
@@ -199,7 +162,7 @@ const filterRules = function(key) {
 
 /******************************************************************************/
 
-const renderRules = (function() {
+var renderRules = (function() {
     let firstVisit = true;
     let reIsSwitchRule = /^[a-z-]+: /;
 
@@ -228,7 +191,7 @@ const renderRules = (function() {
 
 /******************************************************************************/
 
-const applyDiff = function(permanent, toAdd, toRemove) {
+var applyDiff = function(permanent, toAdd, toRemove) {
     messaging.send(
         'dashboard',
         {
@@ -298,7 +261,7 @@ function handleImportFilePicker() {
 
 /******************************************************************************/
 
-const startImportFilePicker = function() {
+var startImportFilePicker = function() {
     let input = document.getElementById('importFilePicker');
     // Reset to empty string, this will ensure an change event is properly
     // triggered if the user pick a file, even if it is the same as the last
@@ -324,7 +287,7 @@ function exportUserRulesToFile() {
 
 /******************************************************************************/
 
-const onFilterChanged = (function() {
+var onFilterChanged = (function() {
     let timer,
         overlay = null,
         last = '';
@@ -356,13 +319,13 @@ const onFilterChanged = (function() {
 
 /******************************************************************************/
 
-const onTextChanged = (function() {
+var onTextChanged = (function() {
     let timer;
 
     let process = function(now) {
         timer = undefined;
-        const diff = document.getElementById('diff');
         let isClean = mergeView.editor().isClean(cleanEditToken);
+        let diff = document.getElementById('diff');
         if (
             now &&
             isClean === false &&
@@ -377,7 +340,7 @@ const onTextChanged = (function() {
             'disabled',
             isClean
         );
-        const input = document.querySelector('#ruleFilter input');
+        let input = document.querySelector('#ruleFilter input');
         if ( isClean ) {
             input.removeAttribute('disabled');
             CodeMirror.commands.save = undefined;
@@ -395,7 +358,7 @@ const onTextChanged = (function() {
 
 /******************************************************************************/
 
-const revertAllHandler = function() {
+var revertAllHandler = function() {
     let toAdd = [], toRemove = [];
     let left = mergeView.leftOriginal(),
         edit = mergeView.editor();
@@ -416,7 +379,7 @@ const revertAllHandler = function() {
 
 /******************************************************************************/
 
-const commitAllHandler = function() {
+var commitAllHandler = function() {
     let toAdd = [], toRemove = [];
     let left = mergeView.leftOriginal(),
         edit = mergeView.editor();
@@ -437,7 +400,7 @@ const commitAllHandler = function() {
 
 /******************************************************************************/
 
-const editSaveHandler = function() {
+var editSaveHandler = function() {
     let editor = mergeView.editor();
     let editText = editor.getValue().trim();
     if ( editText === cleanEditText ) {

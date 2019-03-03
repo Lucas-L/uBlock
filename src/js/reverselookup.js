@@ -60,7 +60,7 @@ var stopWorker = function() {
 
 var initWorker = function(callback) {
     if ( worker === null ) {
-        worker = new Worker('js/reverselookup-worker.js');
+        worker = new Worker('plugins/uBlock/js/reverselookup-worker.js');
         worker.onmessage = onWorkerMessage;
     }
 

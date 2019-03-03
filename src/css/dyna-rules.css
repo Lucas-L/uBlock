@@ -26,7 +26,7 @@ body {
     box-sizing: border-box;
     display: inline-block;
     padding: 0;
-    text-align: center;
+    text-align: left;
     vertical-align: top;
     width: 50%;
     white-space: nowrap;
@@ -36,8 +36,10 @@ body {
     margin: 0.5em 0;
     }
 #ruleFilter {
-    direction: ltr;
-    text-align: center;
+    /* direction: ltr;
+    text-align: center; */
+    position: relative;
+    margin-left: 22px;
     }
 #ruleFilter .fa {
     color: #888;

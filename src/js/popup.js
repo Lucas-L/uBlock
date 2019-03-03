@@ -29,7 +29,7 @@
 
 /******************************************************************************/
 
-let popupFontSize = vAPI.localStorage.getItem('popupFontSize');
+var popupFontSize = vAPI.localStorage.getItem('popupFontSize');
 if ( typeof popupFontSize === 'string' && popupFontSize !== 'unset' ) {
     document.body.style.setProperty('font-size', popupFontSize);
 }
@@ -58,24 +58,24 @@ if ( dfPaneVisibleStored ) {
 
 /******************************************************************************/
 
-const messaging = vAPI.messaging;
-const reIP = /^\d+(?:\.\d+){1,3}$/;
-const scopeToSrcHostnameMap = {
+var messaging = vAPI.messaging;
+var popupData = {};
+var dfPaneBuilt = false;
+var reIP = /^\d+(?:\.\d+){1,3}$/;
+var scopeToSrcHostnameMap = {
     '/': '*',
     '.': ''
 };
-const hostnameToSortableTokenMap = new Map();
-const statsStr = vAPI.i18n('popupBlockedStats');
-const domainsHitStr = vAPI.i18n('popupHitDomainCount');
-
-let popupData = {};
-let dfPaneBuilt = false;
-let dfHotspots = null;
-let allDomains = {};
-let allDomainCount = 0;
-let allHostnameRows = [];
-let touchedDomainCount = 0;
-let cachedPopupHash = '';
+var dfHotspots = null;
+var hostnameToSortableTokenMap = new Map();
+var allDomains = {};
+var allDomainCount = 0;
+var allHostnameRows = [];
+var touchedDomainCount = 0;
+var rowsToRecycle = uDom();
+var cachedPopupHash = '';
+var statsStr = vAPI.i18n('popupBlockedStats');
+var domainsHitStr = vAPI.i18n('popupHitDomainCount');
 
 // https://github.com/gorhill/uBlock/issues/2550
 // Solution inspired from
@@ -85,8 +85,8 @@ let cachedPopupHash = '';
 // - http://unicode.org/cldr/utility/list-unicodeset.jsp?a=%5B%D0%B0%D1%81%D4%81%D0%B5%D2%BB%D1%96%D1%98%D3%8F%D0%BE%D1%80%D4%9B%D1%95%D4%9D%D1%85%D1%83%D1%8A%D0%AC%D2%BD%D0%BF%D0%B3%D1%B5%D1%A1%5D&g=gc&i=
 // Linked from:
 // - https://www.chromium.org/developers/design-documents/idn-in-google-chrome
-const reCyrillicNonAmbiguous = /[\u0400-\u042b\u042d-\u042f\u0431\u0432\u0434\u0436-\u043d\u0442\u0444\u0446-\u0449\u044b-\u0454\u0457\u0459-\u0460\u0462-\u0474\u0476-\u04ba\u04bc\u04be-\u04ce\u04d0-\u0500\u0502-\u051a\u051c\u051e-\u052f]/;
-const reCyrillicAmbiguous = /[\u042c\u0430\u0433\u0435\u043e\u043f\u0440\u0441\u0443\u0445\u044a\u0455\u0456\u0458\u0461\u0475\u04bb\u04bd\u04cf\u0501\u051b\u051d]/;
+var reCyrillicNonAmbiguous = /[\u0400-\u042b\u042d-\u042f\u0431\u0432\u0434\u0436-\u043d\u0442\u0444\u0446-\u0449\u044b-\u0454\u0457\u0459-\u0460\u0462-\u0474\u0476-\u04ba\u04bc\u04be-\u04ce\u04d0-\u0500\u0502-\u051a\u051c\u051e-\u052f]/;
+var reCyrillicAmbiguous = /[\u042c\u0430\u0433\u0435\u043e\u043f\u0440\u0441\u0443\u0445\u044a\u0455\u0456\u0458\u0461\u0475\u04bb\u04bd\u04cf\u0501\u051b\u051d]/;
 
 /******************************************************************************/
 
@@ -94,21 +94,21 @@ const reCyrillicAmbiguous = /[\u042c\u0430\u0433\u0435\u043e\u043f\u0440\u0441\u
 // - Its vertical position depends on the height of the popup title bar
 // - Its horizontal position depends on whether there is a vertical scrollbar.
 
-const positionRulesetTools = function() {
-    const vpos = document.getElementById('appinfo')
-                         .getBoundingClientRect()
-                         .bottom + window.scrollY + 3;
-    const hpos = document.getElementById('firewallContainer')
-                         .getBoundingClientRect()
-                         .left + window.scrollX + 3;
-    const style = document.getElementById('rulesetTools').style;
+var positionRulesetTools = function() {
+    var vpos = document.getElementById('appinfo')
+                       .getBoundingClientRect()
+                       .bottom + window.scrollY + 3;
+    var hpos = document.getElementById('firewallContainer')
+                       .getBoundingClientRect()
+                       .left + window.scrollX + 3;
+    var style = document.getElementById('rulesetTools').style;
     style.setProperty('top', (vpos >>> 0) + 'px');
     style.setProperty('left', (hpos >>> 0) + 'px');
 };
 
 /******************************************************************************/
 
-const cachePopupData = function(data) {
+var cachePopupData = function(data) {
     popupData = {};
     scopeToSrcHostnameMap['.'] = '';
     hostnameToSortableTokenMap.clear();
@@ -118,11 +118,11 @@ const cachePopupData = function(data) {
     }
     popupData = data;
     scopeToSrcHostnameMap['.'] = popupData.pageHostname || '';
-    const hostnameDict = popupData.hostnameDict;
+    let hostnameDict = popupData.hostnameDict;
     if ( typeof hostnameDict !== 'object' ) {
         return popupData;
     }
-    for ( const hostname in hostnameDict ) {
+    for ( let hostname in hostnameDict ) {
         if ( hostnameDict.hasOwnProperty(hostname) === false ) { continue; }
         let domain = hostnameDict[hostname].domain;
         let prefix = hostname.slice(0, 0 - domain.length - 1);
@@ -141,24 +141,20 @@ const cachePopupData = function(data) {
 
 /******************************************************************************/
 
-const hashFromPopupData = function(reset) {
+var hashFromPopupData = function(reset) {
     // It makes no sense to offer to refresh the behind-the-scene scope
     if ( popupData.pageHostname === 'behind-the-scene' ) {
         uDom('body').toggleClass('dirty', false);
         return;
     }
 
-    const hasher = [];
-    const rules = popupData.firewallRules;
-    for ( const key in rules ) {
-        const rule = rules[key];
-        if ( rule === null ) { continue; }
-        hasher.push(
-            rule.src + ' ' +
-            rule.des + ' ' +
-            rule.type + ' ' +
-            rule.action
-        );
+    var hasher = [],
+        rules = popupData.firewallRules;
+    for ( var key in rules ) {
+        var rule = rules[key];
+        if ( rule !== null ) {
+            hasher.push(rule.src + ' ' + rule.des + ' ' + rule.type + ' ' + rule.action);
+        }
     }
     hasher.sort();
     hasher.push(uDom('body').hasClass('off'));
@@ -166,8 +162,7 @@ const hashFromPopupData = function(reset) {
     hasher.push(uDom.nodeFromId('no-cosmetic-filtering').classList.contains('on'));
     hasher.push(uDom.nodeFromId('no-remote-fonts').classList.contains('on'));
     hasher.push(uDom.nodeFromId('no-scripting').classList.contains('on'));
-
-    const hash = hasher.join('');
+    var hash = hasher.join('');
     if ( reset ) {
         cachedPopupHash = hash;
     }
@@ -176,23 +171,23 @@ const hashFromPopupData = function(reset) {
 
 /******************************************************************************/
 
-const formatNumber = function(count) {
+var formatNumber = function(count) {
     return typeof count === 'number' ? count.toLocaleString() : '';
 };
 
 /******************************************************************************/
 
-const rulekeyCompare = function(a, b) {
-    let ha = a.slice(2, a.indexOf(' ', 2));
+var rulekeyCompare = function(a, b) {
+    var ha = a.slice(2, a.indexOf(' ', 2));
     if ( !reIP.test(ha) ) {
         ha = hostnameToSortableTokenMap.get(ha) || ' ';
     }
-    let hb = b.slice(2, b.indexOf(' ', 2));
+    var hb = b.slice(2, b.indexOf(' ', 2));
     if ( !reIP.test(hb) ) {
         hb = hostnameToSortableTokenMap.get(hb) || ' ';
     }
-    const ca = ha.charCodeAt(0);
-    const cb = hb.charCodeAt(0);
+    var ca = ha.charCodeAt(0),
+        cb = hb.charCodeAt(0);
     if ( ca !== cb ) {
         return ca - cb;
     }
@@ -201,46 +196,76 @@ const rulekeyCompare = function(a, b) {
 
 /******************************************************************************/
 
-const updateFirewallCell = function(scope, des, type, rule) {
-    const row = document.querySelector(
-        `#firewallContainer div[data-des="${des}"][data-type="${type}"]`
+var addFirewallRow = function(des) {
+    var row = rowsToRecycle.pop();
+    if ( row.length === 0 ) {
+        row = uDom('#templates > div:nth-of-type(1)').clone();
+    }
+
+    row.descendants('[data-des]').attr('data-des', des);
+
+    var hnDetails = popupData.hostnameDict[des] || {},
+        isDomain = des === hnDetails.domain,
+        prettyDomainName = punycode.toUnicode(des),
+        isPunycoded = prettyDomainName !== des;
+    var span = row.nodeAt(0).querySelector('span:first-of-type');
+    span.classList.toggle(
+        'isIDN',
+        isPunycoded && reCyrillicAmbiguous.test(prettyDomainName) === true &&
+                       reCyrillicNonAmbiguous.test(prettyDomainName) === false
     );
-    if ( row === null ) { return; }
+    span.querySelector('span').textContent = prettyDomainName;
+    span.title = isDomain && isPunycoded ? des : '';
 
-    const cells = row.querySelectorAll(`:scope > span[data-src="${scope}"]`);
-    if ( cells.length === 0 ) { return; }
+    row.toggleClass('isDomain', isDomain)
+       .toggleClass('isSubDomain', !isDomain)
+       .toggleClass('allowed', hnDetails.allowCount !== 0)
+       .toggleClass('blocked', hnDetails.blockCount !== 0)
+       .toggleClass('totalAllowed', hnDetails.totalAllowCount !== 0)
+       .toggleClass('totalBlocked', hnDetails.totalBlockCount !== 0);
 
+    row.appendTo('#firewallContainer');
+
+    return row;
+};
+
+/******************************************************************************/
+
+var updateFirewallCell = function(scope, des, type, rule) {
+    var selector = '#firewallContainer span[data-src="' + scope + '"][data-des="' + des + '"][data-type="' + type + '"]';
+    var cells = uDom(selector);
+    if ( cells.length === 0 ) {
+        return;
+    }
+
+    cells.removeClass();
     if ( rule !== null ) {
-        cells.forEach(el => { el.setAttribute('class', rule.action + 'Rule'); });
-    } else {
-        cells.forEach(el => { el.removeAttribute('class'); });
+        cells.toggleClass(rule.action + 'Rule', true);
     }
 
     // Use dark shade visual cue if the rule is specific to the cell.
-    if (
-        (rule !== null) &&
-        (rule.des !== '*' || rule.type === type) &&
-        (rule.des === des) &&
-        (rule.src === scopeToSrcHostnameMap[scope])
-        
-    ) {
-        cells.forEach(el => { el.classList.add('ownRule'); });
+    var ownRule = false;
+    if ( rule !== null ) {
+        ownRule = (rule.des !== '*' || rule.type === type) &&
+                  (rule.des === des) &&
+                  (rule.src === scopeToSrcHostnameMap[scope]);
     }
+    cells.toggleClass('ownRule', ownRule);
 
-    if ( scope !== '.' || des === '*' ) { return; }
+    if ( scope !== '.' || des === '*' ) {
+        return;
+    }
 
     // Remember this may be a cell from a reused row, we need to clear text
     // content if we can't compute request counts.
     if ( popupData.hostnameDict.hasOwnProperty(des) === false ) {
-        cells.forEach(el => {
-            el.removeAttribute('data-acount');
-            el.removeAttribute('data-bcount');
-        });
+        cells.removeAttr('data-acount');
+        cells.removeAttr('data-acount');
         return;
     }
 
-    const hnDetails = popupData.hostnameDict[des];
-    let cell = cells[0];
+    var hnDetails = popupData.hostnameDict[des],
+        cell = cells.nodeAt(0);
     if ( hnDetails.allowCount !== 0 ) {
         cell.setAttribute('data-acount', Math.min(Math.ceil(Math.log(hnDetails.allowCount + 1) / Math.LN10), 3));
     } else {
@@ -256,7 +281,7 @@ const updateFirewallCell = function(scope, des, type, rule) {
         return;
     }
 
-    cell = cells[1];
+    cell = cells.nodeAt(1);
     if ( hnDetails.totalAllowCount !== 0 ) {
         cell.setAttribute('data-acount', Math.min(Math.ceil(Math.log(hnDetails.totalAllowCount + 1) / Math.LN10), 3));
     } else {
@@ -271,10 +296,12 @@ const updateFirewallCell = function(scope, des, type, rule) {
 
 /******************************************************************************/
 
-const updateAllFirewallCells = function() {
-    const rules = popupData.firewallRules;
-    for ( const key in rules ) {
-        if ( rules.hasOwnProperty(key) === false ) { continue; }
+var updateAllFirewallCells = function() {
+    var rules = popupData.firewallRules;
+    for ( var key in rules ) {
+        if ( rules.hasOwnProperty(key) === false ) {
+            continue;
+        }
         updateFirewallCell(
             key.charAt(0),
             key.slice(2, key.indexOf(' ', 2)),
@@ -283,7 +310,7 @@ const updateAllFirewallCells = function() {
         );
     }
 
-    const dirty = popupData.matrixIsDirty === true;
+    var dirty = popupData.matrixIsDirty === true;
     if ( dirty ) {
         positionRulesetTools();
     }
@@ -292,7 +319,7 @@ const updateAllFirewallCells = function() {
 
 /******************************************************************************/
 
-const buildAllFirewallRows = function() {
+var buildAllFirewallRows = function() {
     // Do this before removing the rows
     if ( dfHotspots === null ) {
         dfHotspots = uDom('#actionSelector')
@@ -301,57 +328,13 @@ const buildAllFirewallRows = function() {
     }
     dfHotspots.detach();
 
-    // Update incrementally: reuse existing rows if possible.
-    let rowContainer = document.getElementById('firewallContainer');
-    let toAppend = document.createDocumentFragment();
-    let rowTemplate = document.querySelector('#templates > div:nth-of-type(1)');
-    let row = rowContainer.querySelector('div:nth-of-type(7) + div');
+    // Remove and reuse all rows: the order may have changed, we can't just
+    // reuse them in-place.
+    rowsToRecycle = uDom('#firewallContainer > div:nth-of-type(7) ~ div').detach();
 
-    for ( const des of allHostnameRows ) {
-        if ( row === null ) {
-            row = rowTemplate.cloneNode(true);
-            toAppend.appendChild(row);
-        }
-
-        row.setAttribute('data-des', des);
-
-        const hnDetails = popupData.hostnameDict[des] || {};
-        const isDomain = des === hnDetails.domain;
-        const prettyDomainName = punycode.toUnicode(des);
-        const isPunycoded = prettyDomainName !== des;
-
-        const span = row.querySelector('span:first-of-type');
-        span.classList.toggle(
-            'isIDN',
-            isPunycoded &&
-                reCyrillicAmbiguous.test(prettyDomainName) === true &&
-                reCyrillicNonAmbiguous.test(prettyDomainName) === false
-        );
-        span.querySelector('span').textContent = prettyDomainName;
-        span.title = isDomain && isPunycoded ? des : '';
-
-        const classList = row.classList;
-        classList.toggle('isDomain', isDomain);
-        classList.toggle('isSubDomain', !isDomain);
-        classList.toggle('allowed', hnDetails.allowCount !== 0);
-        classList.toggle('blocked', hnDetails.blockCount !== 0);
-        classList.toggle('totalAllowed', hnDetails.totalAllowCount !== 0);
-        classList.toggle('totalBlocked', hnDetails.totalBlockCount !== 0);
-
-        row = row.nextElementSibling;
-    }
-
-    // Remove unused trailing rows
-    if ( row !== null ) {
-        while ( row.nextElementSibling !== null ) {
-            rowContainer.removeChild(row.nextElementSibling);
-        }
-        rowContainer.removeChild(row);
-    }
-
-    // Add new rows all at once
-    if ( toAppend.childElementCount !== 0 ) {
-        rowContainer.appendChild(toAppend);
+    var n = allHostnameRows.length;
+    for ( var i = 0; i < n; i++ ) {
+        addFirewallRow(allHostnameRows[i]);
     }
 
     if ( dfPaneBuilt !== true && popupData.advancedUserEnabled ) {
@@ -367,21 +350,25 @@ const buildAllFirewallRows = function() {
 
 /******************************************************************************/
 
-const renderPrivacyExposure = function() {
+var renderPrivacyExposure = function() {
     allDomains = {};
     allDomainCount = touchedDomainCount = 0;
     allHostnameRows = [];
 
     // Sort hostnames. First-party hostnames must always appear at the top
     // of the list.
-    const desHostnameDone = {};
-    const keys = Object.keys(popupData.firewallRules)
+    var desHostnameDone = {};
+    var keys = Object.keys(popupData.firewallRules)
                      .sort(rulekeyCompare);
-    for ( const key of keys ) {
-        const des = key.slice(2, key.indexOf(' ', 2));
+    var key, des, hnDetails;
+    for ( var i = 0; i < keys.length; i++ ) {
+        key = keys[i];
+        des = key.slice(2, key.indexOf(' ', 2));
         // Specific-type rules -- these are built-in
-        if ( des === '*' || desHostnameDone.hasOwnProperty(des) ) { continue; }
-        const hnDetails = popupData.hostnameDict[des] || {};
+        if ( des === '*' || desHostnameDone.hasOwnProperty(des) ) {
+            continue;
+        }
+        hnDetails = popupData.hostnameDict[des] || {};
         if ( allDomains.hasOwnProperty(hnDetails.domain) === false ) {
             allDomains[hnDetails.domain] = false;
             allDomainCount += 1;
@@ -396,15 +383,14 @@ const renderPrivacyExposure = function() {
         desHostnameDone[des] = true;
     }
 
-    const summary = domainsHitStr
-                    .replace('{{count}}', touchedDomainCount.toLocaleString())
-                    .replace('{{total}}', allDomainCount.toLocaleString());
+    var summary = domainsHitStr.replace('{{count}}', touchedDomainCount.toLocaleString())
+                               .replace('{{total}}', allDomainCount.toLocaleString());
     uDom.nodeFromId('popupHitDomainCount').textContent = summary;
 };
 
 /******************************************************************************/
 
-const updateHnSwitches = function() {
+let updateHnSwitches = function() {
     uDom.nodeFromId('no-popups').classList.toggle(
         'on',
         popupData.noPopups === true
@@ -430,7 +416,7 @@ const updateHnSwitches = function() {
 
 // Assume everything has to be done incrementally.
 
-const renderPopup = function() {
+var renderPopup = function() {
     if ( popupData.tabTitle ) {
         document.title = popupData.appName + ' - ' + popupData.tabTitle;
     }
@@ -446,7 +432,7 @@ const renderPopup = function() {
     );
 
     let canElementPicker = popupData.canElementPicker === true &&
-                           popupData.netFilteringSwitch === true;
+    popupData.netFilteringSwitch === true;
     uDom.nodeFromId('gotoPick').classList.toggle('enabled', canElementPicker);
     uDom.nodeFromId('gotoZap').classList.toggle('enabled', canElementPicker);
 
@@ -457,7 +443,7 @@ const renderPopup = function() {
         text = formatNumber(0);
     } else {
         text = statsStr.replace('{{count}}', formatNumber(blocked))
-                       .replace('{{percent}}', formatNumber(Math.floor(blocked * 100 / total)));
+                        .replace('{{percent}}%', '');
     }
     uDom.nodeFromId('page-blocked').textContent = text;
 
@@ -467,7 +453,7 @@ const renderPopup = function() {
         text = formatNumber(0);
     } else {
         text = statsStr.replace('{{count}}', formatNumber(blocked))
-                       .replace('{{percent}}', formatNumber(Math.floor(blocked * 100 / total)));
+                        .replace('{{percent}}%', '');
     }
     uDom.nodeFromId('total-blocked').textContent = text;
 
@@ -479,22 +465,22 @@ const renderPopup = function() {
 
     // Report blocked popup count on badge
     total = popupData.popupBlockedCount;
-    uDom.nodeFromSelector('#no-popups > span.fa-icon-badge')
-        .textContent = total ? Math.min(total, 99).toLocaleString() : '';
+    uDom.nodeFromSelector('#no-popups > span.badge')
+        .textContent = total ? total.toLocaleString() : '';
 
     // Report large media count on badge
     total = popupData.largeMediaCount;
-    uDom.nodeFromSelector('#no-large-media > span.fa-icon-badge')
-        .textContent = total ? Math.min(total, 99).toLocaleString() : '';
+    uDom.nodeFromSelector('#no-large-media > span.badge')
+        .textContent = total ? total.toLocaleString() : '';
 
     // Report remote font count on badge
     total = popupData.remoteFontCount;
-    uDom.nodeFromSelector('#no-remote-fonts > span.fa-icon-badge')
-        .textContent = total ? Math.min(total, 99).toLocaleString() : '';
+    uDom.nodeFromSelector('#no-remote-fonts > span.badge')
+        .textContent = total ? total.toLocaleString() : '';
 
     // https://github.com/chrisaljoudi/uBlock/issues/470
     // This must be done here, to be sure the popup is resized properly
-    const dfPaneVisible = popupData.dfEnabled;
+    let dfPaneVisible = popupData.dfEnabled;
 
     // https://github.com/chrisaljoudi/uBlock/issues/1068
     // Remember the last state of the firewall pane. This allows to
@@ -525,7 +511,7 @@ const renderPopup = function() {
         buildAllFirewallRows();
     }
 
-    renderTooltips();
+    // renderTooltips();
 };
 
 /******************************************************************************/
@@ -533,73 +519,73 @@ const renderPopup = function() {
 // https://github.com/gorhill/uBlock/issues/2889
 //   Use tooltip for ARIA purpose.
 
-const renderTooltips = function(selector) {
-    for ( const entry of tooltipTargetSelectors ) {
-        if ( selector !== undefined && entry[0] !== selector ) { continue; }
-        const text = vAPI.i18n(
-            entry[1].i18n +
-            (uDom.nodeFromSelector(entry[1].state) === null ? '1' : '2')
-        );
-        const elem = uDom.nodeFromSelector(entry[0]);
-        elem.setAttribute('aria-label', text);
-        elem.setAttribute('data-tip', text);
-        if ( selector !== undefined ) {
-            uDom.nodeFromId('tooltip').textContent =
-                elem.getAttribute('data-tip');
-        }
-    }
-};
+// var renderTooltips = function(selector) {
+//     for ( let entry of tooltipTargetSelectors ) {
+//         if ( selector !== undefined && entry[0] !== selector ) { continue; }
+//         let text = vAPI.i18n(
+//             entry[1].i18n +
+//             (uDom.nodeFromSelector(entry[1].state) === null ? '1' : '2')
+//         );
+//         let elem = uDom.nodeFromSelector(entry[0]);
+//         elem.setAttribute('aria-label', text);
+//         elem.setAttribute('data-tip', text);
+//         if ( selector !== undefined ) {
+//             uDom.nodeFromId('tooltip').textContent =
+//                 elem.getAttribute('data-tip');
+//         }
+//     }
+// };
 
-const tooltipTargetSelectors = new Map([
-    [
-        '#switch',
-        {
-            state: 'body.off',
-            i18n: 'popupPowerSwitchInfo',
-        }
-    ],
-    [
-        '#no-popups',
-        {
-            state: '#no-popups.on',
-            i18n: 'popupTipNoPopups'
-        }
-    ],
-    [
-        '#no-large-media',
-        {
-            state: '#no-large-media.on',
-            i18n: 'popupTipNoLargeMedia'
-        }
-    ],
-    [
-        '#no-cosmetic-filtering',
-        {
-            state: '#no-cosmetic-filtering.on',
-            i18n: 'popupTipNoCosmeticFiltering'
-        }
-    ],
-    [
-        '#no-remote-fonts',
-        {
-            state: '#no-remote-fonts.on',
-            i18n: 'popupTipNoRemoteFonts'
-        }
-    ],
-    [
-        '#no-scripting',
-        {
-            state: '#no-scripting.on',
-            i18n: 'popupTipNoScripting'
-        }
-    ],
-]);
+// var tooltipTargetSelectors = new Map([
+//     [
+//         '#switch',
+//         {
+//             state: 'body.off',
+//             i18n: 'popupPowerSwitchInfo',
+//         }
+//     ],
+//     [
+//         '#no-popups',
+//         {
+//             state: '#no-popups.on',
+//             i18n: 'popupTipNoPopups'
+//         }
+//     ],
+//     [
+//         '#no-large-media',
+//         {
+//             state: '#no-large-media.on',
+//             i18n: 'popupTipNoLargeMedia'
+//         }
+//     ],
+//     [
+//         '#no-cosmetic-filtering',
+//         {
+//             state: '#no-cosmetic-filtering.on',
+//             i18n: 'popupTipNoCosmeticFiltering'
+//         }
+//     ],
+//     [
+//         '#no-remote-fonts',
+//         {
+//             state: '#no-remote-fonts.on',
+//             i18n: 'popupTipNoRemoteFonts'
+//         }
+//     ],
+//     [
+//         '#no-scripting',
+//         {
+//             state: '#no-scripting.on',
+//             i18n: 'popupTipNoScripting'
+//         }
+//     ],
+// ]);
 
 /******************************************************************************/
 
 // All rendering code which need to be executed only once.
 
-let renderOnce = function() {
+var renderOnce = function() {
     renderOnce = function(){};
 
     if ( popupData.fontSize !== popupFontSize ) {
@@ -613,8 +599,8 @@ let renderOnce = function() {
         }
     }
 
-    uDom.nodeFromId('appname').textContent = popupData.appName;
-    uDom.nodeFromId('version').textContent = popupData.appVersion;
+    // uDom.nodeFromId('appname').textContent = popupData.appName;
+    // uDom.nodeFromId('version').textContent = popupData.appVersion;
 
     // https://github.com/uBlockOrigin/uBlock-issues/issues/22
     if ( popupData.advancedUserEnabled !== true ) {
@@ -631,8 +617,8 @@ let renderOnce = function() {
     // scrollbar if ever its height is more than what is available.
     // For small displays: we use the whole viewport.
 
-    const rpane = uDom.nodeFromSelector('#panes > div:first-of-type');
-    const lpane = uDom.nodeFromSelector('#panes > div:last-of-type');
+    let rpane = uDom.nodeFromSelector('#panes > div:first-of-type'),
+        lpane = uDom.nodeFromSelector('#panes > div:last-of-type');
 
     lpane.style.setProperty('height', rpane.offsetHeight + 'px');
 
@@ -640,7 +626,7 @@ let renderOnce = function() {
     // viewport is not a perfect match for the popup panel.
 
     let resizeTimer;
-    const resize = function() {
+    let resize = function() {
         resizeTimer = undefined;
         // Do not use equality, fractional pixel dimension occurs and must
         // be ignored.
@@ -656,7 +642,7 @@ let renderOnce = function() {
         lpane.style.removeProperty('height');
         window.removeEventListener('resize', resizeAsync);
     };
-    const resizeAsync = function() {
+    let resizeAsync = function() {
         if ( resizeTimer !== undefined ) {
             clearTimeout(resizeTimer);
         }
@@ -668,29 +654,29 @@ let renderOnce = function() {
 
 /******************************************************************************/
 
-const renderPopupLazy = function() {
+var renderPopupLazy = function() {
     messaging.send(
         'popupPanel',
         { what: 'getPopupLazyData', tabId: popupData.tabId }
     );
 };
 
-const onPopupMessage = function(data) {
+var onPopupMessage = function(data) {
     if ( !data ) { return; }
     if ( data.tabId !== popupData.tabId ) { return; }
 
     switch ( data.what ) {
     case 'domSurveyFinalReport':
         let count = data.affectedElementCount || '';
-        uDom.nodeFromSelector('#no-cosmetic-filtering > span.fa-icon-badge')
-            .textContent = typeof count === 'number'
-                ? Math.min(count, 99).toLocaleString()
-                : count;
+        uDom.nodeFromSelector('#no-cosmetic-filtering > span.badge')
+            .textContent = typeof count === 'number' ?
+                count.toLocaleString() :
+                count;
         count = data.scriptCount || '';
-        uDom.nodeFromSelector('#no-scripting > span.fa-icon-badge')
-            .textContent = typeof count === 'number'
-                ? Math.min(count, 99).toLocaleString()
-                : count;
+        uDom.nodeFromSelector('#no-scripting > span.badge')
+            .textContent = typeof count === 'number' ?
+                count.toLocaleString() :
+                count;
         break;
     }
 };
@@ -699,7 +685,7 @@ messaging.addChannelListener('popup', onPopupMessage);
 
 /******************************************************************************/
 
-const toggleNetFilteringSwitch = function(ev) {
+var toggleNetFilteringSwitch = function(ev) {
     if ( !popupData || !popupData.pageURL ) { return; }
     messaging.send(
         'popupPanel',
@@ -717,7 +703,7 @@ const toggleNetFilteringSwitch = function(ev) {
 
 /******************************************************************************/
 
-const gotoZap = function() {
+var gotoZap = function() {
     messaging.send(
         'popupPanel',
         {
@@ -732,7 +718,7 @@ const gotoZap = function() {
 
 /******************************************************************************/
 
-const gotoPick = function() {
+var gotoPick = function() {
     messaging.send(
         'popupPanel',
         {
@@ -746,14 +732,14 @@ const gotoPick = function() {
 
 /******************************************************************************/
 
-const gotoURL = function(ev) {
+var gotoURL = function(ev) {
     if ( this.hasAttribute('href') === false ) { return; }
 
     ev.preventDefault();
 
     let url = this.getAttribute('href');
     if (
-        url === 'logger-ui.html#_' &&
+        url === 'plugins/uBlock/logger-ui.html#tab_active' &&
         typeof popupData.tabId === 'number'
     ) {
         url += '+' + popupData.tabId;
@@ -777,7 +763,7 @@ const gotoURL = function(ev) {
 
 /******************************************************************************/
 
-const toggleFirewallPane = function() {
+var toggleFirewallPane = function() {
     popupData.dfEnabled = !popupData.dfEnabled;
 
     messaging.send(
@@ -805,19 +791,19 @@ const toggleFirewallPane = function() {
 
 /******************************************************************************/
 
-const mouseenterCellHandler = function() {
+var mouseenterCellHandler = function() {
     if ( uDom(this).hasClass('ownRule') === false ) {
         dfHotspots.appendTo(this);
     }
 };
 
-const mouseleaveCellHandler = function() {
+var mouseleaveCellHandler = function() {
     dfHotspots.detach();
 };
 
 /******************************************************************************/
 
-const setFirewallRule = function(src, des, type, action, persist) {
+var setFirewallRule = function(src, des, type, action, persist) {
     // This can happen on pages where uBlock does not work
     if (
         typeof popupData.pageHostname !== 'string' ||
@@ -848,13 +834,12 @@ const setFirewallRule = function(src, des, type, action, persist) {
 
 /******************************************************************************/
 
-const unsetFirewallRuleHandler = function(ev) {
-    const cell = ev.target;
-    const row = cell.closest('[data-des]');
+var unsetFirewallRuleHandler = function(ev) {
+    let cell = uDom(ev.target);
     setFirewallRule(
-        cell.getAttribute('data-src') === '/' ? '*' : popupData.pageHostname,
-        row.getAttribute('data-des'),
-        row.getAttribute('data-type'),
+        cell.attr('data-src') === '/' ? '*' : popupData.pageHostname,
+        cell.attr('data-des'),
+        cell.attr('data-type'),
         0,
         ev.ctrlKey || ev.metaKey
     );
@@ -863,23 +848,23 @@ const unsetFirewallRuleHandler = function(ev) {
 
 /******************************************************************************/
 
-const setFirewallRuleHandler = function(ev) {
-    const hotspot = ev.target;
-    const cell = hotspot.closest('[data-src]');
-    if ( cell === null ) { return; }
-    const row = cell.closest('[data-des]');
+var setFirewallRuleHandler = function(ev) {
+    let hotspot = uDom(ev.target);
+    let cell = hotspot.ancestors('[data-src]');
+    if ( cell.length === 0 ) { return; }
     let action = 0;
-    if ( hotspot.id === 'dynaAllow' ) {
+    let hotspotId = hotspot.attr('id');
+    if ( hotspotId === 'dynaAllow' ) {
         action = 2;
-    } else if ( hotspot.id === 'dynaNoop' ) {
+    } else if ( hotspotId === 'dynaNoop' ) {
         action = 3;
     } else {
         action = 1;
     }
     setFirewallRule(
-        cell.getAttribute('data-src') === '/' ? '*' : popupData.pageHostname,
-        row.getAttribute('data-des'),
-        row.getAttribute('data-type'),
+        cell.attr('data-src') === '/' ? '*' : popupData.pageHostname,
+        cell.attr('data-des'),
+        cell.attr('data-type'),
         action,
         ev.ctrlKey || ev.metaKey
     );
@@ -888,7 +873,7 @@ const setFirewallRuleHandler = function(ev) {
 
 /******************************************************************************/
 
-const reloadTab = function(ev) {
+var reloadTab = function(ev) {
     messaging.send(
         'popupPanel',
         {
@@ -912,7 +897,7 @@ const reloadTab = function(ev) {
 
 /******************************************************************************/
 
-const toggleMinimize = function(ev) {
+var toggleMinimize = function(ev) {
     // Special display mode: in its own tab/window, with no vertical restraint.
     // Useful to take snapshots of the whole list of domains -- example:
     //   https://github.com/gorhill/uBlock/issues/736#issuecomment-178879944
@@ -922,7 +907,7 @@ const toggleMinimize = function(ev) {
             {
                 what: 'gotoURL',
                 details: {
-                    url: 'popup.html?tabId=' + popupData.tabId + '&responsive=1',
+                    url: 'plugins/uBlock/popup.html?tabId=' + popupData.tabId + '&responsive=1',
                     select: true,
                     index: -1
                 }
@@ -948,7 +933,7 @@ const toggleMinimize = function(ev) {
 
 /******************************************************************************/
 
-const saveFirewallRules = function() {
+var saveFirewallRules = function() {
     messaging.send(
         'popupPanel',
         {
@@ -962,7 +947,7 @@ const saveFirewallRules = function() {
 
 /******************************************************************************/
 
-const revertFirewallRules = function() {
+var revertFirewallRules = function() {
     messaging.send(
         'popupPanel',
         {
@@ -983,9 +968,9 @@ const revertFirewallRules = function() {
 
 /******************************************************************************/
 
-const toggleHostnameSwitch = function(ev) {
-    const target = ev.currentTarget;
-    const switchName = target.getAttribute('id');
+var toggleHostnameSwitch = function(ev) {
+    let target = ev.currentTarget;
+    let switchName = target.getAttribute('id');
     if ( !switchName ) { return; }
     target.classList.toggle('on');
     messaging.send(
@@ -1004,7 +989,7 @@ const toggleHostnameSwitch = function(ev) {
             hashFromPopupData();
         }
     );
-    renderTooltips('#' + switchName);
+    // renderTooltips('#' + switchName);
 };
 
 /******************************************************************************/
@@ -1027,11 +1012,11 @@ const toggleHostnameSwitch = function(ev) {
 // on demand rather than forcing the main process to assume a client may need
 // it and thus having to push it all the time unconditionally.
 
-const pollForContentChange = (function() {
-    let pollTimer;
+var pollForContentChange = (function() {
+    var pollTimer = null;
 
-    const pollCallback = function() {
-        pollTimer = undefined;
+    var pollCallback = function() {
+        pollTimer = null;
         messaging.send(
             'popupPanel',
             {
@@ -1043,7 +1028,7 @@ const pollForContentChange = (function() {
         );
     };
 
-    const queryCallback = function(response) {
+    var queryCallback = function(response) {
         if ( response ) {
             getPopupData(popupData.tabId);
             return;
@@ -1051,8 +1036,10 @@ const pollForContentChange = (function() {
         poll();
     };
 
-    const poll = function() {
-        if ( pollTimer !== undefined ) { return; }
+    var poll = function() {
+        if ( pollTimer !== null ) {
+            return;
+        }
         pollTimer = vAPI.setTimeout(pollCallback, 1500);
     };
 
@@ -1061,8 +1048,8 @@ const pollForContentChange = (function() {
 
 /******************************************************************************/
 
-const getPopupData = function(tabId) {
-    const onDataReceived = function(response) {
+var getPopupData = function(tabId) {
+    var onDataReceived = function(response) {
         cachePopupData(response);
         renderOnce();
         renderPopup();
@@ -1079,29 +1066,32 @@ const getPopupData = function(tabId) {
 
 /******************************************************************************/
 
-const onShowTooltip = function(ev) {
-    if ( popupData.tooltipsDisabled ) { return; }
+var onShowTooltip = function() {
+    if ( popupData.tooltipsDisabled ) {
+        return;
+    }
 
-    const target = ev.target;
+    var target = this;
 
     // Tooltip container
-    const ttc = uDom(target).ancestors('.tooltipContainer').nodeAt(0) ||
-                document.body;
-    const ttcRect = ttc.getBoundingClientRect();
+    var ttc = uDom(target).ancestors('.tooltipContainer').nodeAt(0) ||
+              document.body;
+    var ttcRect = ttc.getBoundingClientRect();
 
     // Tooltip itself
-    const tip = uDom.nodeFromId('tooltip');
+    var tip = uDom.nodeFromId('tooltip');
     tip.textContent = target.getAttribute('data-tip');
     tip.style.removeProperty('top');
     tip.style.removeProperty('bottom');
     ttc.appendChild(tip);
 
     // Target rect
-    const targetRect = target.getBoundingClientRect();
+    var targetRect = target.getBoundingClientRect();
 
     // Default is "over"
-    let pos;
-    if ( target.getAttribute('data-tip-position') !== 'under' ) {
+    var pos;
+    var over = target.getAttribute('data-tip-position') !== 'under';
+    if ( over ) {
         pos = ttcRect.height - targetRect.top + ttcRect.top;
         tip.style.setProperty('bottom', pos + 'px');
     } else {
@@ -1112,7 +1102,7 @@ const onShowTooltip = function(ev) {
     tip.classList.add('show');
 };
 
-const onHideTooltip = function() {
+var onHideTooltip = function() {
     uDom.nodeFromId('tooltip').classList.remove('show');
 };
 
@@ -1127,7 +1117,7 @@ const onHideTooltip = function() {
     let tabId = null;
 
     // Extract the tab id of the page this popup is for
-    const matches = window.location.search.match(/[\?&]tabId=([^&]+)/);
+    let matches = window.location.search.match(/[\?&]tabId=([^&]+)/);
     if ( matches && matches.length === 2 ) {
         tabId = parseInt(matches[1], 10) || 0;
     }
@@ -1147,7 +1137,7 @@ uDom('[data-i18n="popupAnyRulePrompt"]').on('click', toggleMinimize);
 uDom('body').on('mouseenter', '[data-tip]', onShowTooltip)
             .on('mouseleave', '[data-tip]', onHideTooltip);
 
-uDom('a[href]').on('click', gotoURL);
+// uDom('a[href]').on('click', gotoURL);
 
 /******************************************************************************/
 

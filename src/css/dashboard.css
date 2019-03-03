@@ -7,7 +7,21 @@ html, body {
     height: 100%;
     overflow: hidden;
     }
+    body{
+        background-color: white;
+        color: black;
+        font: 14px sans-serif;
+        background-color: #ffffff;
+        font-family: 'Open Sans',sans-serif;
+        font-size: 14px;
+        color: #333333;
+        line-height: 20px;
+        /* background-image: url(../../../assets/images/background.png); */
+        background-position: center;
+        background-size: cover;
+      }
 @media screen and (max-device-width: 960px) {
+
     #dashboard-nav {
         zoom: 1.2;
         }
@@ -19,12 +33,33 @@ html, body {
     top: 0;
     width: 100%;
     z-index: 10;
+    overflow: auto;
+    text-align: center;
+    display: inline-block;
     }
+
+
+    #dashboard-nav::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      
+      #dashboard-nav::-webkit-scrollbar-track {
+        -webkit-box-shadow: 0 0 3px #343434;
+        border-radius: 10px;
+      }
+      
+      #dashboard-nav::-webkit-scrollbar-thumb {
+        border-radius: 10px;
+        -webkit-box-shadow: 0 0 3px #ffffff;
+        background-color: #ffffff;
+      }
 #dashboard-nav-widgets {
     align-items: stretch;
-    background-color: white;
-    border-bottom: 1px solid #ccc;
-    display: flex;
+    /* background-color: white; */
+    /* border-bottom: 1px solid #ccc; */
+    display: inline-block;
+    text-align: center;
     margin: 0;
     padding: 4px 0 0;
     white-space: nowrap;
@@ -39,21 +74,13 @@ html, body {
     width: 100%;
     }
 .tabButton {
-    background-color: #eee;
-    border: 1px solid #ccc;
-    border-top-left-radius: 3px;
-    border-top-right-radius: 3px;
-    border-bottom: 1px solid #ccc;
-    color: black;
     cursor: pointer;
     display: inline-block;
-    font-size: 110%;
-    margin: 0 0.2em 0 0;
-    overflow: hidden;
-    padding: 4px;
-    position: relative;
+    margin-right: 15px;
+    color: #fff;
+    font-size: 20px;
     text-decoration: none;
-    top: 1px;
+    padding: 7px 14px;
     }
 .tabButton:focus {
     outline: 0;
@@ -62,8 +89,9 @@ html, body {
     color: inherit;
     }
 .tabButton.selected {
-    background-color: white;
-    border-bottom: 1px solid white;
+    /* background-color: white;
+    border-bottom: 1px solid white; */
+    color: #00abff;
     }
 iframe {
     margin: 0;
@@ -78,6 +106,9 @@ body:not(.canUpdateShortcuts) .tabButton[href="#shortcuts.html"] {
     }
 
 @media (max-width: 640px) {
+    .width50{
+        width: 100% !important;
+    }
     #dashboard-nav {
         position: relative;
         }
@@ -88,9 +119,10 @@ body:not(.canUpdateShortcuts) .tabButton[href="#shortcuts.html"] {
         display: none !important;
         }
     .tabButton {
-        font-size: 90%;
+        font-size: 15px;
+        margin-right: 10px;
         }
     .tabButton.selected {
-        border-bottom: 1px solid #ccc;
+        /* border-bottom: 1px solid #ccc; */
         }
     }

@@ -51,9 +51,9 @@
             vAPI.tabs.get(null, function(tab) {
                 let hash = tab.url.startsWith(vAPI.getURL('')) ?
                     '' :
-                    '#_+' + tab.id;
+                    '#tab_active+' + tab.id;
                 µb.openNewTab({
-                    url: 'logger-ui.html' + hash,
+                    url: 'plugins/uBlock/logger-ui.html' + hash,
                     select: true,
                     index: -1
                 });

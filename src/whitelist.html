@@ -13,6 +13,10 @@
 <link rel="stylesheet" href="css/cloud-ui.css">
 <link rel="stylesheet" href="css/whitelist.css">
 <link rel="stylesheet" href="css/codemirror.css">
+
+ <!-- Load Mobiscroll  -->
+ <script src="/external/mobiscroll/mobiscroll.javascript.min.js"></script>
+ <link href="/external/mobiscroll/mobiscroll.javascript.min.css" rel="stylesheet" type="text/css">
 </head>
 
 <body>
@@ -20,14 +24,14 @@
 <div class="body">
     <div id="cloudWidget" class="hide" data-cloud-entry="whitelistPane"></div>
 
-    <p class="vverbose"><span data-i18n="whitelistPrompt"></span> <a class="fa info important" href="https://github.com/gorhill/uBlock/wiki/Dashboard:-Whitelist">&#xf05a;</a>
+    <p class="vverbose"><span data-i18n="whitelistPrompt"></span> <a class="mbsc-ic mbsc-ic-material-info-outline info important" href="https://github.com/gorhill/uBlock/wiki/Dashboard:-Whitelist"></a>
     </p>
-    <p>
-        <button id="whitelistApply" class="custom important iconifiable" type="button" disabled><span class="fa">&#xf00c;</span><span data-i18n="whitelistApply"></span></button>
-        <button id="whitelistRevert" class="custom iconifiable" type="button" disabled><span class="fa">&#xf0e2;</span><span data-i18n="genericRevert"></span></button>
+    <p class="headerButtons">
+        <button id="whitelistApply" class="custom important iconifiable buttonsBittube" type="button" disabled><span data-i18n="whitelistApply"></span></button>
+        <button id="whitelistRevert" class="custom iconifiable buttonsBittube" type="button" disabled><span data-i18n="genericRevert"></span></button>
         &emsp;&emsp;
-        <button id="importWhitelistFromFile" class="custom iconifiable" type="button"><span class="fa">&#xf019;</span><span data-i18n="whitelistImport"></span></button>
-        <button id="exportWhitelistToFile" class="custom iconifiable" type="button"><span class="fa">&#xf093;</span><span data-i18n="whitelistExport"></span></button>
+        <button id="importWhitelistFromFile" class="custom iconifiable buttonsBittube" type="button"><span data-i18n="whitelistImport"></span></button>
+        <button id="exportWhitelistToFile" class="custom iconifiable buttonsBittube" type="button"><span data-i18n="whitelistExport"></span></button>
     </p>
 </div>
 <div id="whitelist" class="codeMirrorContainer codeMirrorFillVertical"></div>

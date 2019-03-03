@@ -52,7 +52,7 @@ var getDomainNames = function(targets) {
 
 /******************************************************************************/
 
-const onMessage = function(request, sender, callback) {
+var onMessage = function(request, sender, callback) {
     // Async
     switch ( request.what ) {
     case 'getAssetContent':
@@ -84,7 +84,7 @@ const onMessage = function(request, sender, callback) {
         break;
     }
 
-    const tabId = sender && sender.tab ? sender.tab.id : 0;
+    var tabId = sender && sender.tab ? sender.tab.id : 0;
 
     // Sync
     var response;
@@ -103,7 +103,7 @@ const onMessage = function(request, sender, callback) {
         break;
 
     case 'createUserFilter':
-        µb.appendUserFilters(request.filters, request);
+        µb.appendUserFilters(request.filters);
         // https://github.com/gorhill/uBlock/issues/1786
         µb.cosmeticFilteringEngine.removeFromSelectorCache(request.pageDomain);
         break;
@@ -399,7 +399,7 @@ var onMessage = function(request, sender, callback) {
             pageStore.scriptCount = 0;
             vAPI.tabs.injectScript(request.tabId, {
                 allFrames: true,
-                file: '/js/scriptlets/dom-survey.js',
+                file: 'plugins/uBlock/js/scriptlets/dom-survey.js',
                 runAt: 'document_end'
             });
         }
@@ -497,8 +497,8 @@ var onMessage = function(request, sender, callback) {
     }
 
     // Sync
-    const µb = µBlock;
-    let response,
+    var µb = µBlock,
+        response,
         tabId, frameId,
         pageStore = null;
 
@@ -527,12 +527,13 @@ var onMessage = function(request, sender, callback) {
 
     case 'shouldRenderNoscriptTags':
         if ( pageStore === null ) { break; }
-        const fctxt = µb.filteringContext.fromTabId(tabId);
-        if ( pageStore.filterScripting(fctxt, undefined) ) {
+        let tabContext = µb.tabContextManager.lookup(tabId);
+        if ( tabContext === null ) { break; }
+        if ( pageStore.filterScripting(tabContext.rootHostname, undefined) ) {
             vAPI.tabs.injectScript(
                 tabId,
                 {
-                    file: '/js/scriptlets/noscript-spoof.js',
+                    file: 'plugins/uBlock/js/scriptlets/noscript-spoof.js',
                     frameId: frameId,
                     runAt: 'document_end'
                 }
@@ -560,18 +561,12 @@ var onMessage = function(request, sender, callback) {
         request.domain = µb.URI.domainFromHostname(request.hostname);
         request.entity = µb.URI.entityFromDomain(request.domain);
         response.specificCosmeticFilters =
-            µb.cosmeticFilteringEngine.retrieveSpecificSelectors(
-                request,
-                response
-            );
+            µb.cosmeticFilteringEngine.retrieveSpecificSelectors(request, response);
         if ( µb.canInjectScriptletsNow === false ) {
             response.scriptlets = µb.scriptletFilteringEngine.retrieve(request);
         }
-        if ( µb.logger.enabled ) {
-            if ( response.noCosmeticFiltering !== true ) {
-                µb.logCosmeticFilters(tabId, frameId);
-            }
-            µb.logInlineScript(tabId, frameId);
+        if ( response.noCosmeticFiltering !== true ) {
+            µb.logCosmeticFilters(tabId, frameId);
         }
         break;
 
@@ -608,14 +603,16 @@ vAPI.messaging.listen('contentscript', onMessage);
 
 /******************************************************************************/
 
-const onMessage = function(request, sender, callback) {
-    const µb = µBlock;
+var µb = µBlock;
 
+/******************************************************************************/
+
+var onMessage = function(request, sender, callback) {
     // Async
     switch ( request.what ) {
     case 'elementPickerArguments':
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', 'epicker.html', true);
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'plugins/uBlock/epicker.html', true);
         xhr.overrideMimeType('text/html;charset=utf-8');
         xhr.responseType = 'text';
         xhr.onload = function() {
@@ -630,8 +627,8 @@ const onMessage = function(request, sender, callback) {
                 cosmeticFilters: vAPI.i18n('pickerCosmeticFilters'),
                 cosmeticFiltersHint: vAPI.i18n('pickerCosmeticFiltersHint')
             };
-            const reStrings = /\{\{(\w+)\}\}/g;
-            const replacer = function(a0, string) {
+            var reStrings = /\{\{(\w+)\}\}/g;
+            var replacer = function(a0, string) {
                 return i18n[string];
             };
 
@@ -655,7 +652,7 @@ const onMessage = function(request, sender, callback) {
     }
 
     // Sync
-    let response;
+    var response;
 
     switch ( request.what ) {
     case 'elementPickerEprom':
@@ -746,7 +743,7 @@ vAPI.messaging.listen('cloudWidget', onMessage);
 
 /******************************************************************************/
 
-const µb = µBlock;
+var µb = µBlock;
 
 /******************************************************************************/
 
@@ -848,17 +845,17 @@ var restoreUserData = function(request) {
 // Remove all stored data but keep global counts, people can become
 // quite attached to numbers
 
-const resetUserData = function() {
+var resetUserData = function() {
     let count = 3;
-    const countdown = ( ) => {
+    let countdown = ( ) => {
         count -= 1;
         if ( count === 0 ) {
             vAPI.app.restart();
         }
     };
-    µb.cacheStorage.clear().then(( ) => countdown()); // 1
-    vAPI.storage.clear(countdown);             // 2
-    µb.saveLocalSettings(countdown);           // 3
+    µb.cacheStorage.clear(countdown); // 1
+    vAPI.storage.clear(countdown);    // 2
+    µb.saveLocalSettings(countdown);  // 3
     vAPI.localStorage.removeItem('immediateHiddenSettings');
 };
 
@@ -1117,31 +1114,30 @@ vAPI.messaging.listen('dashboard', onMessage);
 
 /******************************************************************************/
 
-const µb = µBlock;
-const extensionOriginURL = vAPI.getURL('');
+var µb = µBlock,
+    extensionOriginURL = vAPI.getURL('');
 
 /******************************************************************************/
 
-const getLoggerData = function(details, activeTabId, callback) {
-    const response = {
+var getLoggerData = function(details, activeTabId, callback) {
+    let response = {
         colorBlind: µb.userSettings.colorBlindFriendly,
         entries: µb.logger.readAll(details.ownerId),
         maxEntries: µb.userSettings.requestLogMaxEntries,
         activeTabId: activeTabId,
-        tabIdsToken: µb.pageStoresToken,
-        tooltips: µb.userSettings.tooltipsDisabled === false
+        tabIdsToken: µb.pageStoresToken
     };
     if ( µb.pageStoresToken !== details.tabIdsToken ) {
-        const tabIds = new Map();
-        for ( const entry of µb.pageStores ) {
-            const pageStore = entry[1];
+        let tabIds = new Map();
+        for ( let entry of µb.pageStores ) {
+            let pageStore = entry[1];
             if ( pageStore.rawURL.startsWith(extensionOriginURL) ) { continue; }
             tabIds.set(entry[0], pageStore.title);
         }
         response.tabIds = Array.from(tabIds);
     }
     if ( activeTabId ) {
-        const pageStore = µb.pageStoreFromTabId(activeTabId);
+        let pageStore = µb.pageStoreFromTabId(activeTabId);
         if (
             pageStore === null ||
             pageStore.rawURL.startsWith(extensionOriginURL)
@@ -1149,67 +1145,43 @@ const getLoggerData = function(details, activeTabId, callback) {
             response.activeTabId = undefined;
         }
     }
-    if ( details.popupLoggerBoxChanged && browser.windows instanceof Object ) {
-        browser.tabs.query(
-            { url: vAPI.getURL('/logger-ui.html?popup=1') },
-            tabs => {
-                if ( Array.isArray(tabs) === false ) { return; }
-                if ( tabs.length === 0 ) { return; }
-                browser.windows.get(tabs[0].windowId, win => {
-                    if ( win instanceof Object === false ) { return; }
-                    vAPI.localStorage.setItem(
-                        'popupLoggerBox',
-                        JSON.stringify({
-                            left: win.left,
-                            top: win.top,
-                            width: win.width,
-                            height: win.height,
-                        })
-                    );
-                });
-            }
-        );
-    }
     callback(response);
 };
 
 /******************************************************************************/
 
-const getURLFilteringData = function(details) {
-    const colors = {};
-    const response = {
+var getURLFilteringData = function(details) {
+    var colors = {};
+    var response = {
         dirty: false,
         colors: colors
     };
-    const suf = µb.sessionURLFiltering;
-    const puf = µb.permanentURLFiltering;
-    const urls = details.urls;
-    const context = details.context;
-    const type = details.type;
-    for ( const url of urls ) {
-        const colorEntry = colors[url] = { r: 0, own: false };
+    var suf = µb.sessionURLFiltering;
+    var puf = µb.permanentURLFiltering;
+    var urls = details.urls,
+        context = details.context,
+        type = details.type;
+    var url, colorEntry;
+    var i = urls.length;
+    while ( i-- ) {
+        url = urls[i];
+        colorEntry = colors[url] = { r: 0, own: false };
         if ( suf.evaluateZ(context, url, type).r !== 0 ) {
             colorEntry.r = suf.r;
-            colorEntry.own = suf.r !== 0 &&
-                             suf.context === context &&
-                             suf.url === url &&
-                             suf.type === type;
+            colorEntry.own = suf.r !== 0 && suf.context === context && suf.url === url && suf.type === type;
         }
-        if ( response.dirty ) { continue; }
+        if ( response.dirty ) {
+            continue;
+        }
         puf.evaluateZ(context, url, type);
-        response.dirty = colorEntry.own !== (
-            puf.r !== 0 &&
-            puf.context === context &&
-            puf.url === url &&
-            puf.type === type
-        );
+        response.dirty = colorEntry.own !== (puf.r !== 0 && puf.context === context && puf.url === url && puf.type === type);
     }
     return response;
 };
 
 /******************************************************************************/
 
-const onMessage = function(request, sender, callback) {
+var onMessage = function(request, sender, callback) {
     // Async
     switch ( request.what ) {
     case 'readAll':
@@ -1230,7 +1202,7 @@ const onMessage = function(request, sender, callback) {
     }
 
     // Sync
-    let response;
+    var response;
 
     switch ( request.what ) {
     case 'releaseView':
@@ -1289,11 +1261,11 @@ var onMessage = function(request, sender, callback) {
     }
 
     // Sync
-    let response;
+    var response;
 
     switch ( request.what ) {
     case 'temporarilyWhitelistDocument':
-        µBlock.webRequest.strictBlockBypass(request.hostname);
+        µBlock.webRequest.temporarilyWhitelistDocument(request.hostname);
         break;
 
     default:
@@ -1318,15 +1290,15 @@ vAPI.messaging.listen('documentBlocked', onMessage);
 
 /******************************************************************************/
 
-const µb = µBlock;
-const broadcastTimers = new Map();
+let µb = µBlock;
+let broadcastTimers = new Map();
 
 /******************************************************************************/
 
-const domSurveyFinalReport = function(tabId) {
+var domSurveyFinalReport = function(tabId) {
     broadcastTimers.delete(tabId + '-domSurveyReport');
 
-    const pageStore = µb.pageStoreFromTabId(tabId);
+    let pageStore = µb.pageStoreFromTabId(tabId);
     if ( pageStore === null ) { return; }
 
     vAPI.messaging.broadcast({
@@ -1339,28 +1311,33 @@ const domSurveyFinalReport = function(tabId) {
 
 /******************************************************************************/
 
-const logCosmeticFilters = function(tabId, details) {
-    if ( µb.logger.enabled === false ) { return; }
+var logCosmeticFilters = function(tabId, details) {
+    if ( µb.logger.isEnabled() === false ) {
+        return;
+    }
 
-    const filter = { source: 'cosmetic', raw: '' };
-    const fctxt = µb.filteringContext.duplicate();
-    fctxt.fromTabId(tabId)
-         .setRealm('cosmetic')
-         .setType('dom')
-         .setURL(details.frameURL)
-         .setDocOriginFromURL(details.frameURL)
-         .setFilter(filter);
-    for ( const selector of details.matchedSelectors.sort() ) {
-        filter.raw = '##' + selector;
-        fctxt.toLogger();
+    var selectors = details.matchedSelectors;
+
+    selectors.sort();
+
+    for ( var i = 0; i < selectors.length; i++ ) {
+        µb.logger.writeOne(
+            tabId,
+            'cosmetic',
+            { source: 'cosmetic', raw: '##' + selectors[i] },
+            'dom',
+            details.frameURL,
+            null,
+            details.frameHostname
+        );
     }
 };
 
 /******************************************************************************/
 
 var onMessage = function(request, sender, callback) {
-    const tabId = sender && sender.tab ? sender.tab.id : 0;
-    const pageStore = µb.pageStoreFromTabId(tabId);
+    let tabId = sender && sender.tab ? sender.tab.id : 0;
+    let pageStore = µb.pageStoreFromTabId(tabId);
 
     // Async
     switch ( request.what ) {
@@ -1386,19 +1363,6 @@ var onMessage = function(request, sender, callback) {
                     ( ) => { domSurveyFinalReport(tabId); },
                     53
                 ));
-            }
-        }
-        break;
-
-    case 'inlinescriptFound':
-        if ( µb.logger.enabled && pageStore !== null ) {
-            const fctxt = µb.filteringContext.duplicate();
-            fctxt.fromTabId(tabId)
-                .setType('inline-script')
-                .setURL(request.docURL)
-                .setDocOriginFromURL(request.docURL);
-            if ( pageStore.filterRequest(fctxt) === 0 ) {
-                fctxt.setRealm('network').toLogger();
             }
         }
         break;

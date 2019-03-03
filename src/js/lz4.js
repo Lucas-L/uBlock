@@ -43,7 +43,7 @@ let ttlCount = 0;
 let ttlTimer;
 let ttlDelay = 60000;
 
-const init = function() {
+let init = function() {
     ttlDelay = µBlock.hiddenSettings.autoUpdateAssetFetchPeriod * 1000 + 15000;
     if ( lz4CodecInstance === null ) {
         return Promise.resolve(null);
@@ -52,11 +52,7 @@ const init = function() {
         return Promise.resolve(lz4CodecInstance);
     }
     if ( pendingInitialization === undefined ) {
-        let flavor;
-        if ( µBlock.hiddenSettings.disableWebAssembly === true ) {
-            flavor = 'js';
-        }
-        pendingInitialization = lz4BlockCodec.createInstance(flavor)
+        pendingInitialization = lz4BlockCodec.createInstance()
             .then(instance => {
                 lz4CodecInstance = instance;
                 pendingInitialization = undefined;
@@ -72,20 +68,20 @@ const init = function() {
 // which will cause the wasm instance to be forgotten after enough
 // time elapse without the instance being used.
 
-const destroy = function() {
-    //if ( lz4CodecInstance !== undefined ) {
-    //    console.info(
-    //        'uBO: freeing lz4-block-codec instance (%s KB)',
-    //        lz4CodecInstance.bytesInUse() >>> 10
-    //    );
-    //}
+let destroy = function() {
+    if ( lz4CodecInstance !== undefined ) {
+        console.info(
+            'uBO: freeing lz4-block-codec instance (%s KB)',
+            lz4CodecInstance.bytesInUse() >>> 10
+        );
+    }
     lz4CodecInstance = undefined;
     textEncoder = textDecoder = undefined;
     ttlCount = 0;
     ttlTimer = undefined;
 };
 
-const ttlManage = function(count) {
+let ttlManage = function(count) {
     if ( ttlTimer !== undefined ) {
         clearTimeout(ttlTimer);
         ttlTimer = undefined;
@@ -96,7 +92,7 @@ const ttlManage = function(count) {
     ttlTimer = vAPI.setTimeout(destroy, ttlDelay);
 };
 
-const uint8ArrayFromBlob = function(key, data) {
+let uint8ArrayFromBlob = function(key, data) {
     if ( data instanceof Blob === false ) {
         return Promise.resolve({ key, data });
     }
@@ -109,9 +105,9 @@ const uint8ArrayFromBlob = function(key, data) {
     });
 };
 
-const encodeValue = function(key, value) {
+let encodeValue = function(key, value) {
     if ( !lz4CodecInstance ) { return; }
-    //let t0 = window.performance.now();
+    let t0 = window.performance.now();
     if ( textEncoder === undefined ) {
         textEncoder = new TextEncoder();
     }
@@ -127,20 +123,20 @@ const encodeValue = function(key, value) {
     outputArray[5] = (inputSize >>>  8) & 0xFF;
     outputArray[6] = (inputSize >>> 16) & 0xFF;
     outputArray[7] = (inputSize >>> 24) & 0xFF;
-    //console.info(
-    //    'uBO: [%s] compressed %d KB => %d KB (%s%%) in %s ms',
-    //    key,
-    //    inputArray.byteLength >> 10,
-    //    outputArray.byteLength >> 10,
-    //    (outputArray.byteLength / inputArray.byteLength * 100).toFixed(0),
-    //    (window.performance.now() - t0).toFixed(1)
-    //);
+    console.info(
+        'uBO: [%s] compressed %d KB => %d KB (%s%%) in %s ms',
+        key,
+        inputArray.byteLength >> 10,
+        outputArray.byteLength >> 10,
+        (outputArray.byteLength / inputArray.byteLength * 100).toFixed(0),
+        (window.performance.now() - t0).toFixed(1)
+    );
     return outputArray;
 };
 
-const decodeValue = function(key, inputArray) {
+let decodeValue = function(key, inputArray) {
     if ( !lz4CodecInstance ) { return; }
-    //let t0 = window.performance.now();
+    let t0 = window.performance.now();
     if (
         inputArray[0] !== 0x18 || inputArray[1] !== 0x4D ||
         inputArray[2] !== 0x22 || inputArray[3] !== 0x04
@@ -156,14 +152,14 @@ const decodeValue = function(key, inputArray) {
         textDecoder = new TextDecoder();
     }
     let value = textDecoder.decode(outputArray);
-    //console.info(
-    //    'uBO: [%s] decompressed %d KB => %d KB (%s%%) in %s ms',
-    //    key,
-    //    inputArray.byteLength >>> 10,
-    //    outputSize >>> 10,
-    //    (inputArray.byteLength / outputSize * 100).toFixed(0),
-    //    (window.performance.now() - t0).toFixed(1)
-    //);
+    console.info(
+        'uBO: [%s] decompressed %d KB => %d KB (%s%%) in %s ms',
+        key,
+        inputArray.byteLength >>> 10,
+        outputSize >>> 10,
+        (inputArray.byteLength / outputSize * 100).toFixed(0),
+        (window.performance.now() - t0).toFixed(1)
+    );
     return value;
 };
 
@@ -198,11 +194,7 @@ return {
                 data: decodeValue(result.key, result.data) || result.data
             };
         });
-    },
-    relinquish: function() {
-        ttlDelay = 1;
-        ttlManage(0);
-    },
+    }
 };
 
 /******************************************************************************/

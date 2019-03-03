@@ -29,7 +29,7 @@
 
 /******************************************************************************/
 
-const showdomButton = uDom.nodeFromId('showdom');
+var showdomButton = uDom.nodeFromId('showdom');
 
 // Don't bother if the browser is not modern enough.
 if (
@@ -340,25 +340,31 @@ var nidFromNode = function(node) {
 
 /******************************************************************************/
 
-const startDialog = (function() {
-    let dialog;
-    let textarea;
-    let hideSelectors = [];
-    let unhideSelectors = [];
-    let inputTimer;
+var startDialog = (function() {
+    var dialog = uDom.nodeFromId('cosmeticFilteringDialog');
+    var textarea = dialog.querySelector('textarea');
+    var hideSelectors = [];
+    var unhideSelectors = [];
+    var inputTimer = null;
 
-    const onInputChanged = (function() {
-        const parse = function() {
-            inputTimer = undefined;
+    var onInputChanged = (function() {
+        var parse = function() {
+            inputTimer = null;
             hideSelectors = [];
             unhideSelectors = [];
 
-            const re = /^([^#]*)(#@?#)(.+)$/;
-            for ( let line of textarea.value.split(/\s*\n\s*/) ) {
-                line = line.trim();
-                if ( line === '' || line.charAt(0) === '!' ) { continue; }
-                const matches = re.exec(line);
-                if ( matches === null || matches.length !== 4 ) { continue; }
+            var line, matches;
+            var re = /^([^#]*)(#@?#)(.+)$/;
+            var lines = textarea.value.split(/\s*\n\s*/);
+            for ( var i = 0; i < lines.length; i++ ) {
+                line = lines[i].trim();
+                if ( line === '' || line.charAt(0) === '!' ) {
+                    continue;
+                }
+                matches = re.exec(line);
+                if ( matches === null || matches.length !== 4 ) {
+                    continue;
+                }
                 if ( inspectedHostname.lastIndexOf(matches[1]) === -1 ) {
                     continue;
                 }
@@ -373,15 +379,19 @@ const startDialog = (function() {
         };
 
         return function parseAsync() {
-            if ( inputTimer === undefined ) {
+            if ( inputTimer === null ) {
                 inputTimer = vAPI.setTimeout(parse, 743);
             }
         };
     })();
 
-    const onClicked = function(ev) {
+    var onClicked = function(ev) {
         var target = ev.target;
 
+        // click outside the dialog proper
+        if ( target.classList.contains('modalDialog') ) {
+            return stop();
+        }
         ev.stopPropagation();
 
         if ( target.id === 'createCosmeticFilters' ) {
@@ -392,7 +402,7 @@ const startDialog = (function() {
         }
     };
 
-    const showCommitted = function() {
+    var showCommitted = function() {
         messaging.sendTo(inspectorConnectionId, {
             what: 'showCommitted',
             hide: hideSelectors.join(',\n'),
@@ -400,7 +410,7 @@ const startDialog = (function() {
         });
     };
 
-    const showInteractive = function() {
+    var showInteractive = function() {
         messaging.sendTo(inspectorConnectionId, {
             what: 'showInteractive',
             hide: hideSelectors.join(',\n'),
@@ -408,45 +418,46 @@ const startDialog = (function() {
         });
     };
 
-    const start = function() {
-        dialog = logger.modalDialog.create('#cosmeticFilteringDialog', stop);
-        textarea = dialog.querySelector('textarea');
+    var start = function() {
         hideSelectors = [];
-        for ( const node of domTree.querySelectorAll('code.off') ) {
-            if ( node.classList.contains('filter') ) { continue; }
-            hideSelectors.push(selectorFromNode(node));
+        textarea.addEventListener('input', onInputChanged);
+        var node;
+        for ( node of domTree.querySelectorAll('code.off') ) {
+            if ( node.classList.contains('filter') === false ) {
+                hideSelectors.push(selectorFromNode(node));
+            }
         }
-        const taValue = [];
-        for ( const selector of hideSelectors ) {
+        var taValue = [];
+        var d = new Date();
+        taValue.push('! ' + d.toLocaleString() + ' ' + inspectedURL);
+        for ( var selector of hideSelectors ) {
             taValue.push(inspectedHostname + '##' + selector);
         }
-        const ids = new Set();
-        for ( const node of domTree.querySelectorAll('code.filter.off') ) {
-            const id = node.getAttribute('data-filter-id');
+        var ids = new Set(), id;
+        for ( node of domTree.querySelectorAll('code.filter.off') ) {
+            id = node.getAttribute('data-filter-id');
             if ( ids.has(id) ) { continue; }
             ids.add(id);
             unhideSelectors.push(node.textContent);
             taValue.push(inspectedHostname + '#@#' + node.textContent);
         }
         textarea.value = taValue.join('\n');
-        textarea.addEventListener('input', onInputChanged);
+        document.body.appendChild(dialog);
         dialog.addEventListener('click', onClicked, true);
         showCommitted();
-        logger.modalDialog.show();
     };
 
-    const stop = function() {
-        if ( inputTimer !== undefined ) {
+    var stop = function() {
+        if ( inputTimer !== null ) {
             clearTimeout(inputTimer);
-            inputTimer = undefined;
+            inputTimer = null;
         }
         showInteractive();
-        textarea.removeEventListener('input', onInputChanged);
-        dialog.removeEventListener('click', onClicked, true);
-        dialog = undefined;
-        textarea = undefined;
         hideSelectors = [];
         unhideSelectors = [];
+        textarea.removeEventListener('input', onInputChanged);
+        dialog.removeEventListener('click', onClicked, true);
+        document.body.removeChild(dialog);
     };
 
     return start;
@@ -548,16 +559,16 @@ var onMouseOver = (function() {
 
 /******************************************************************************/
 
-const currentTabId = function() {
+var currentTabId = function() {
     if ( showdomButton.classList.contains('active') === false ) { return 0; }
     return logger.tabIdFromPageSelector();
 };
 
 /******************************************************************************/
 
-const injectInspector = function() {
-    const tabId = currentTabId();
-    if ( tabId <= 0 ) { return; }
+var injectInspector = function() {
+    var tabId = currentTabId();
+    if ( tabId === 0 ) { return; }
     inspectedTabId = tabId;
     messaging.send('loggerUI', {
         what: 'scriptlet',
@@ -574,18 +585,14 @@ var shutdownInspector = function() {
         inspectorConnectionId = undefined;
     }
     logger.removeAllChildren(domTree);
-    inspector.classList.remove('vExpanded');
+    inspector.classList.add('vCompact');
     inspectedTabId = 0;
 };
 
 /******************************************************************************/
 
 var onTabIdChanged = function() {
-    const tabId = currentTabId();
-    if ( tabId <= 0 ) {
-        return toggleOff();
-    }
-    if ( inspectedTabId !== tabId ) {
+    if ( inspectedTabId !== currentTabId() ) {
         shutdownInspector();
         injectInspector();
     }
@@ -594,7 +601,7 @@ var onTabIdChanged = function() {
 /******************************************************************************/
 
 var toggleVCompactView = function() {
-    var state = inspector.classList.toggle('vExpanded');
+    var state = !inspector.classList.toggle('vCompact');
     var branches = document.querySelectorAll('#domInspector li.branch');
     for ( var branch of branches ) {
         branch.classList.toggle('show', state);
@@ -606,14 +613,14 @@ var toggleHCompactView = function() {
 };
 
 /******************************************************************************/
-/*
+
 var toggleHighlightMode = function() {
     messaging.sendTo(inspectorConnectionId, {
         what: 'highlightMode',
         invert: uDom.nodeFromSelector('#domInspector .permatoolbar .highlightMode').classList.toggle('invert')
     });
 };
-*/
+
 /******************************************************************************/
 
 var revert = function() {
@@ -625,15 +632,14 @@ var revert = function() {
 
 /******************************************************************************/
 
-const toggleOn = function() {
-    uDom.nodeFromId('inspectors').classList.add('dom');
+var toggleOn = function() {
     window.addEventListener('beforeunload', toggleOff);
     document.addEventListener('tabIdChanged', onTabIdChanged);
     domTree.addEventListener('click', onClicked, true);
     domTree.addEventListener('mouseover', onMouseOver, true);
     uDom.nodeFromSelector('#domInspector .vCompactToggler').addEventListener('click', toggleVCompactView);
     uDom.nodeFromSelector('#domInspector .hCompactToggler').addEventListener('click', toggleHCompactView);
-    //uDom.nodeFromSelector('#domInspector .permatoolbar .highlightMode').addEventListener('click', toggleHighlightMode);
+    uDom.nodeFromSelector('#domInspector .permatoolbar .highlightMode').addEventListener('click', toggleHighlightMode);
     uDom.nodeFromSelector('#domInspector .permatoolbar .revert').addEventListener('click', revert);
     uDom.nodeFromSelector('#domInspector .permatoolbar .commit').addEventListener('click', startDialog);
     injectInspector();
@@ -641,9 +647,7 @@ const toggleOn = function() {
 
 /******************************************************************************/
 
-const toggleOff = function() {
-    showdomButton.classList.remove('active');
-    uDom.nodeFromId('inspectors').classList.remove('dom');
+var toggleOff = function() {
     shutdownInspector();
     window.removeEventListener('beforeunload', toggleOff);
     document.removeEventListener('tabIdChanged', onTabIdChanged);
@@ -651,7 +655,7 @@ const toggleOff = function() {
     domTree.removeEventListener('mouseover', onMouseOver, true);
     uDom.nodeFromSelector('#domInspector .vCompactToggler').removeEventListener('click', toggleVCompactView);
     uDom.nodeFromSelector('#domInspector .hCompactToggler').removeEventListener('click', toggleHCompactView);
-    //uDom.nodeFromSelector('#domInspector .permatoolbar .highlightMode').removeEventListener('click', toggleHighlightMode);
+    uDom.nodeFromSelector('#domInspector .permatoolbar .highlightMode').removeEventListener('click', toggleHighlightMode);
     uDom.nodeFromSelector('#domInspector .permatoolbar .revert').removeEventListener('click', revert);
     uDom.nodeFromSelector('#domInspector .permatoolbar .commit').removeEventListener('click', startDialog);
     inspectedTabId = 0;
@@ -659,13 +663,12 @@ const toggleOff = function() {
 
 /******************************************************************************/
 
-const toggle = function() {
+var toggle = function() {
     if ( showdomButton.classList.toggle('active') ) {
         toggleOn();
     } else {
         toggleOff();
     }
-    logger.resize();
 };
 
 /******************************************************************************/

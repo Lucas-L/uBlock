@@ -1,7 +1,7 @@
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/LICENSE
+// Distributed under an MIT license: http://codemirror.net/LICENSE
 
-// This is CodeMirror (https://codemirror.net), a code editor
+// This is CodeMirror (http://codemirror.net), a code editor
 // implemented in JavaScript on top of the browser's DOM.
 //
 // You can find some technical background for some of the code below
@@ -745,16 +745,6 @@ function collapsedSpanAtSide(line, start) {
 }
 function collapsedSpanAtStart(line) { return collapsedSpanAtSide(line, true) }
 function collapsedSpanAtEnd(line) { return collapsedSpanAtSide(line, false) }
-
-function collapsedSpanAround(line, ch) {
-  var sps = sawCollapsedSpans && line.markedSpans, found
-  if (sps) { for (var i = 0; i < sps.length; ++i) {
-    var sp = sps[i]
-    if (sp.marker.collapsed && (sp.from == null || sp.from < ch) && (sp.to == null || sp.to > ch) &&
-        (!found || compareCollapsedMarkers(found, sp.marker) < 0)) { found = sp.marker }
-  } }
-  return found
-}
 
 // Test whether there exists a collapsed span that partially
 // overlaps (covers the start or end, but not both) of a new span.
@@ -1820,7 +1810,7 @@ function buildLineContent(cm, lineView) {
   var builder = {pre: eltP("pre", [content], "CodeMirror-line"), content: content,
                  col: 0, pos: 0, cm: cm,
                  trailingSpace: false,
-                 splitSpaces: cm.getOption("lineWrapping")}
+                 splitSpaces: (ie || webkit) && cm.getOption("lineWrapping")}
   lineView.measure = {}
 
   // Iterate over the logical lines that make up this visual line.
@@ -1941,8 +1931,6 @@ function buildToken(builder, text, style, startStyle, endStyle, title, css) {
   builder.content.appendChild(content)
 }
 
-// Change some spaces to NBSP to prevent the browser from collapsing
-// trailing spaces at the end of a line when rendering text (issue #1362).
 function splitSpaces(text, trailingBefore) {
   if (text.length > 1 && !/  /.test(text)) { return text }
   var spaceBefore = trailingBefore, result = ""
@@ -2790,11 +2778,12 @@ function coordsChar(cm, x, y) {
   var lineObj = getLine(doc, lineN)
   for (;;) {
     var found = coordsCharInner(cm, lineObj, lineN, x, y)
-    var collapsed = collapsedSpanAround(lineObj, found.ch + (found.xRel > 0 ? 1 : 0))
-    if (!collapsed) { return found }
-    var rangeEnd = collapsed.find(1)
-    if (rangeEnd.line == lineN) { return rangeEnd }
-    lineObj = getLine(doc, lineN = rangeEnd.line)
+    var merged = collapsedSpanAtEnd(lineObj)
+    var mergedPos = merged && merged.find(0, true)
+    if (merged && (found.ch > mergedPos.from.ch || found.ch == mergedPos.from.ch && found.xRel > 0))
+      { lineN = lineNo(lineObj = mergedPos.to.line) }
+    else
+      { return found }
   }
 }
 
@@ -3554,7 +3543,6 @@ var NativeScrollbars = function(place, scroll, cm) {
   this.cm = cm
   var vert = this.vert = elt("div", [elt("div", null, null, "min-width: 1px")], "CodeMirror-vscrollbar")
   var horiz = this.horiz = elt("div", [elt("div", null, null, "height: 100%; min-height: 1px")], "CodeMirror-hscrollbar")
-  vert.tabIndex = horiz.tabIndex = -1
   place(vert); place(horiz)
 
   on(vert, "scroll", function () {
@@ -5696,7 +5684,7 @@ LineWidget.prototype.changed = function () {
   this.height = null
   var diff = widgetHeight(this) - oldH
   if (!diff) { return }
-  if (!lineIsHidden(this.doc, line)) { updateLineHeight(line, line.height + diff) }
+  updateLineHeight(line, line.height + diff)
   if (cm) {
     runInOp(cm, function () {
       cm.curOp.forceUpdate = true
@@ -6579,6 +6567,8 @@ function registerGlobalHandlers() {
 // Called when the window resizes
 function onResize(cm) {
   var d = cm.display
+  if (d.lastWrapHeight == d.wrapper.clientHeight && d.lastWrapWidth == d.wrapper.clientWidth)
+    { return }
   // Might be a text scaling operation, clear size caches.
   d.cachedCharWidth = d.cachedTextHeight = d.cachedPaddingH = null
   d.scrollbarsClipped = false
@@ -6624,7 +6614,7 @@ keyMap.pcDefault = {
   "Ctrl-G": "findNext", "Shift-Ctrl-G": "findPrev", "Shift-Ctrl-F": "replace", "Shift-Ctrl-R": "replaceAll",
   "Ctrl-[": "indentLess", "Ctrl-]": "indentMore",
   "Ctrl-U": "undoSelection", "Shift-Ctrl-U": "redoSelection", "Alt-U": "redoSelection",
-  "fallthrough": "basic"
+  fallthrough: "basic"
 }
 // Very basic readline/emacs-style bindings, which are standard on Mac.
 keyMap.emacsy = {
@@ -6642,7 +6632,7 @@ keyMap.macDefault = {
   "Cmd-G": "findNext", "Shift-Cmd-G": "findPrev", "Cmd-Alt-F": "replace", "Shift-Cmd-Alt-F": "replaceAll",
   "Cmd-[": "indentLess", "Cmd-]": "indentMore", "Cmd-Backspace": "delWrappedLineLeft", "Cmd-Delete": "delWrappedLineRight",
   "Cmd-U": "undoSelection", "Shift-Cmd-U": "redoSelection", "Ctrl-Up": "goDocStart", "Ctrl-Down": "goDocEnd",
-  "fallthrough": ["basic", "emacsy"]
+  fallthrough: ["basic", "emacsy"]
 }
 keyMap["default"] = mac ? keyMap.macDefault : keyMap.pcDefault
 
@@ -7244,9 +7234,8 @@ function onMouseDown(e) {
     }
     return
   }
-  var button = e_button(e)
-  if (button == 3 && captureRightClick ? contextMenuInGutter(cm, e) : clickInGutter(cm, e)) { return }
-  var pos = posFromMouse(cm, e), repeat = pos ? clickRepeat(pos, button) : "single"
+  if (clickInGutter(cm, e)) { return }
+  var pos = posFromMouse(cm, e), button = e_button(e), repeat = pos ? clickRepeat(pos, button) : "single"
   window.focus()
 
   // #3261: make sure, that we're not starting a second selection
@@ -7487,7 +7476,7 @@ function leftButtonSelect(cm, event, start, behavior) {
   }
 
   var move = operation(cm, function (e) {
-    if (e.buttons === 0 || !e_button(e)) { done(e) }
+    if (!e_button(e)) { done(e) }
     else { extend(e) }
   })
   var up = operation(cm, done)
@@ -7725,7 +7714,6 @@ function defineOptions(CodeMirror) {
   option("tabindex", null, function (cm, val) { return cm.display.input.getField().tabIndex = val || ""; })
   option("autofocus", null)
   option("direction", "ltr", function (cm, val) { return cm.doc.setDirection(val); }, true)
-  option("phrases", null)
 }
 
 function guttersChanged(cm) {
@@ -7777,7 +7765,6 @@ function CodeMirror(place, options) {
 
   var doc = options.value
   if (typeof doc == "string") { doc = new Doc(doc, options.mode, null, options.lineSeparator, options.direction) }
-  else if (options.mode) { doc.modeOption = options.mode }
   this.doc = doc
 
   var input = new CodeMirror.inputStyles[options.inputStyle](this)
@@ -8564,11 +8551,6 @@ function addEditorMethods(CodeMirror) {
       return old
     }),
 
-    phrase: function(phraseText) {
-      var phrases = this.options.phrases
-      return phrases && Object.prototype.hasOwnProperty.call(phrases, phraseText) ? phrases[phraseText] : phraseText
-    },
-
     getInputField: function(){return this.display.input.getField()},
     getWrapperElement: function(){return this.display.wrapper},
     getScrollerElement: function(){return this.display.scroller},
@@ -8773,12 +8755,8 @@ ContentEditableInput.prototype.showSelection = function (info, takeFocus) {
   this.showMultipleSelections(info)
 };
 
-ContentEditableInput.prototype.getSelection = function () {
-  return this.cm.display.wrapper.ownerDocument.getSelection()
-};
-
 ContentEditableInput.prototype.showPrimarySelection = function () {
-  var sel = this.getSelection(), cm = this.cm, prim = cm.doc.sel.primary()
+  var sel = window.getSelection(), cm = this.cm, prim = cm.doc.sel.primary()
   var from = prim.from(), to = prim.to()
 
   if (cm.display.viewTo == cm.display.viewFrom || from.line >= cm.display.viewTo || to.line < cm.display.viewFrom) {
@@ -8845,13 +8823,13 @@ ContentEditableInput.prototype.showMultipleSelections = function (info) {
 };
 
 ContentEditableInput.prototype.rememberSelection = function () {
-  var sel = this.getSelection()
+  var sel = window.getSelection()
   this.lastAnchorNode = sel.anchorNode; this.lastAnchorOffset = sel.anchorOffset
   this.lastFocusNode = sel.focusNode; this.lastFocusOffset = sel.focusOffset
 };
 
 ContentEditableInput.prototype.selectionInEditor = function () {
-  var sel = this.getSelection()
+  var sel = window.getSelection()
   if (!sel.rangeCount) { return false }
   var node = sel.getRangeAt(0).commonAncestorContainer
   return contains(this.div, node)
@@ -8886,14 +8864,14 @@ ContentEditableInput.prototype.receivedFocus = function () {
 };
 
 ContentEditableInput.prototype.selectionChanged = function () {
-  var sel = this.getSelection()
+  var sel = window.getSelection()
   return sel.anchorNode != this.lastAnchorNode || sel.anchorOffset != this.lastAnchorOffset ||
     sel.focusNode != this.lastFocusNode || sel.focusOffset != this.lastFocusOffset
 };
 
 ContentEditableInput.prototype.pollSelection = function () {
   if (this.readDOMTimeout != null || this.gracePeriod || !this.selectionChanged()) { return }
-  var sel = this.getSelection(), cm = this.cm
+  var sel = window.getSelection(), cm = this.cm
   // On Android Chrome (version 56, at least), backspacing into an
   // uneditable block element will put the cursor in that element,
   // and then, because it's not editable, hide the virtual keyboard.
@@ -9067,13 +9045,12 @@ function isInGutter(node) {
 function badPos(pos, bad) { if (bad) { pos.bad = true; } return pos }
 
 function domTextBetween(cm, from, to, fromLine, toLine) {
-  var text = "", closing = false, lineSep = cm.doc.lineSeparator(), extraLinebreak = false
+  var text = "", closing = false, lineSep = cm.doc.lineSeparator()
   function recognizeMarker(id) { return function (marker) { return marker.id == id; } }
   function close() {
     if (closing) {
       text += lineSep
-      if (extraLinebreak) { text += lineSep }
-      closing = extraLinebreak = false
+      closing = false
     }
   }
   function addText(str) {
@@ -9085,8 +9062,8 @@ function domTextBetween(cm, from, to, fromLine, toLine) {
   function walk(node) {
     if (node.nodeType == 1) {
       var cmText = node.getAttribute("cm-text")
-      if (cmText) {
-        addText(cmText)
+      if (cmText != null) {
+        addText(cmText || node.textContent.replace(/\u200b/g, ""))
         return
       }
       var markerID = node.getAttribute("cm-marker"), range
@@ -9097,24 +9074,19 @@ function domTextBetween(cm, from, to, fromLine, toLine) {
         return
       }
       if (node.getAttribute("contenteditable") == "false") { return }
-      var isBlock = /^(pre|div|p|li|table|br)$/i.test(node.nodeName)
-      if (!/^br$/i.test(node.nodeName) && node.textContent.length == 0) { return }
-
+      var isBlock = /^(pre|div|p)$/i.test(node.nodeName)
       if (isBlock) { close() }
       for (var i = 0; i < node.childNodes.length; i++)
         { walk(node.childNodes[i]) }
-
-      if (/^(pre|p)$/i.test(node.nodeName)) { extraLinebreak = true }
       if (isBlock) { closing = true }
     } else if (node.nodeType == 3) {
-      addText(node.nodeValue.replace(/\u200b/g, "").replace(/\u00a0/g, " "))
+      addText(node.nodeValue)
     }
   }
   for (;;) {
     walk(from)
     if (from == to) { break }
     from = from.nextSibling
-    extraLinebreak = false
   }
   return text
 }
@@ -9686,7 +9658,7 @@ CodeMirror.fromTextArea = fromTextArea
 
 addLegacyProps(CodeMirror)
 
-CodeMirror.version = "5.40.2"
+CodeMirror.version = "5.37.0"
 
 return CodeMirror;
 

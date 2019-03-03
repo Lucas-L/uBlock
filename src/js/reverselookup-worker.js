@@ -25,18 +25,18 @@
 
 /******************************************************************************/
 
-const reBlockStart = /^#block-start-(\d+)\n/gm;
-let listEntries = Object.create(null);
+var listEntries = Object.create(null),
+    reBlockStart = /^#block-start-(\d+)\n/gm;
 
 /******************************************************************************/
 
-const extractBlocks = function(content, begId, endId) {
+var extractBlocks = function(content, begId, endId) {
     reBlockStart.lastIndex = 0;
-    const out = [];
-    let match = reBlockStart.exec(content);
+    var out = [];
+    var match = reBlockStart.exec(content);
     while ( match !== null ) {
-        const beg = match.index + match[0].length;
-        const blockId = parseInt(match[1], 10);
+        var beg = match.index + match[0].length;
+        var blockId = parseInt(match[1], 10);
         if ( blockId >= begId && blockId < endId ) {
             var end = content.indexOf('#block-end-' + match[1], beg);
             out.push(content.slice(beg, end));
@@ -49,14 +49,14 @@ const extractBlocks = function(content, begId, endId) {
 
 /******************************************************************************/
 
-const fromNetFilter = function(details) {
-    const lists = [];
-    const compiledFilter = details.compiledFilter;
+var fromNetFilter = function(details) {
+    var lists = [],
+        compiledFilter = details.compiledFilter;
 
-    for ( const assetKey in listEntries ) {
-        const entry = listEntries[assetKey];
+    for ( let assetKey in listEntries ) {
+        let entry = listEntries[assetKey];
         if ( entry === undefined ) { continue; }
-        const content = extractBlocks(entry.content, 0, 1000);
+        let content = extractBlocks(entry.content, 0, 1000);
         let pos = 0;
         for (;;) {
             pos = content.indexOf(compiledFilter, pos);
@@ -64,7 +64,7 @@ const fromNetFilter = function(details) {
             // We need an exact match.
             // https://github.com/gorhill/uBlock/issues/1392
             // https://github.com/gorhill/uBlock/issues/835
-            const notFound = pos !== 0 && content.charCodeAt(pos - 1) !== 0x0A;
+            let notFound = pos !== 0 && content.charCodeAt(pos - 1) !== 0x0A;
             pos += compiledFilter.length;
             if (
                 notFound ||
@@ -81,7 +81,7 @@ const fromNetFilter = function(details) {
         }
     }
 
-    const response = {};
+    let response = {};
     response[details.rawFilter] = lists;
 
     postMessage({
@@ -112,18 +112,18 @@ const fromNetFilter = function(details) {
 // FilterContainer.fromCompiledContent() is our reference code to create
 // the various compiled versions.
 
-const fromCosmeticFilter = function(details) {
-    const match = /^#@?#\^?/.exec(details.rawFilter);
-    const prefix = match[0];
-    const exception = prefix.charAt(1) === '@';
-    const selector = details.rawFilter.slice(prefix.length);
+let fromCosmeticFilter = function(details) {
+    let match = /^#@?#\^?/.exec(details.rawFilter),
+        prefix = match[0],
+        exception = prefix.charAt(1) === '@',
+        selector = details.rawFilter.slice(prefix.length);
 
     // The longer the needle, the lower the number of false positives.
-    const needle = selector.match(/\w+/g).reduce(function(a, b) {
+    let needle = selector.match(/\w+/g).reduce(function(a, b) {
         return a.length > b.length ? a : b;
     });
 
-    const reHostname = new RegExp(
+    let reHostname = new RegExp(
         '^' +
         details.hostname.split('.').reduce(
             function(acc, item) {
@@ -154,16 +154,16 @@ const fromCosmeticFilter = function(details) {
         );
     }
         
-    const hostnameMatches = hn => {
+    let hostnameMatches = hn => {
         return hn === '' ||
                reHostname.test(hn) ||
                reEntity !== undefined && reEntity.test(hn);
     };
 
-    const response = Object.create(null);
+    let response = Object.create(null);
 
-    for ( const assetKey in listEntries ) {
-        const entry = listEntries[assetKey];
+    for ( let assetKey in listEntries ) {
+        let entry = listEntries[assetKey];
         if ( entry === undefined ) { continue; }
         let content = extractBlocks(entry.content, 1000, 2000),
             isProcedural,
@@ -274,7 +274,7 @@ const fromCosmeticFilter = function(details) {
 /******************************************************************************/
 
 onmessage = function(e) { // jshint ignore:line
-    const msg = e.data;
+    var msg = e.data;
 
     switch ( msg.what ) {
     case 'resetLists':

@@ -29,8 +29,10 @@
 
 /******************************************************************************/
 
-const messaging = vAPI.messaging;
-const cmEditor = new CodeMirror(
+var messaging = vAPI.messaging;
+var cachedUserFilters = '';
+
+var cmEditor = new CodeMirror(
     document.getElementById('userFilters'),
     {
         autofocus: true,
@@ -42,41 +44,24 @@ const cmEditor = new CodeMirror(
 
 uBlockDashboard.patchCodeMirrorEditor(cmEditor);
 
-let cachedUserFilters = '';
-
-/******************************************************************************/
-
-// https://github.com/gorhill/uBlock/issues/3706
-//   Save/restore cursor position
-//
-// CoreMirror reference: https://codemirror.net/doc/manual.html#api_selection
-
-window.addEventListener('beforeunload', ( ) => {
-    vAPI.localStorage.setItem(
-        'myFiltersCursorPosition',
-        JSON.stringify(cmEditor.getCursor().line)
-    );
-});
-
-
 /******************************************************************************/
 
 // This is to give a visual hint that the content of user blacklist has changed.
 
-const userFiltersChanged = function(changed) {
+function userFiltersChanged(changed) {
     if ( typeof changed !== 'boolean' ) {
         changed = cmEditor.getValue().trim() !== cachedUserFilters;
     }
     uDom.nodeFromId('userFiltersApply').disabled = !changed;
     uDom.nodeFromId('userFiltersRevert').disabled = !changed;
-};
+}
 
 /******************************************************************************/
 
-const renderUserFilters = function(first) {
-    const onRead = function(details) {
+function renderUserFilters(first) {
+    var onRead = function(details) {
         if ( details.error ) { return; }
-        let content = details.content.trim();
+        var content = details.content.trim();
         cachedUserFilters = content;
         if ( content.length !== 0 ) {
             content += '\n';
@@ -84,44 +69,38 @@ const renderUserFilters = function(first) {
         cmEditor.setValue(content);
         if ( first ) {
             cmEditor.clearHistory();
-            try {
-                const line = JSON.parse(
-                    vAPI.localStorage.getItem('myFiltersCursorPosition')
-                );
-                if ( typeof line === 'number' ) {
-                    cmEditor.setCursor(line, 0);
-                }
-            } catch(ex) {
-            }
         }
         userFiltersChanged(false);
     };
     messaging.send('dashboard', { what: 'readUserFilters' }, onRead);
-};
+}
 
 /******************************************************************************/
 
-const allFiltersApplyHandler = function() {
+function allFiltersApplyHandler() {
     messaging.send('dashboard', { what: 'reloadAllFilters' });
     uDom('#userFiltersApply').prop('disabled', true );
-};
+}
 
 /******************************************************************************/
 
-const handleImportFilePicker = function() {
+var handleImportFilePicker = function() {
     // https://github.com/chrisaljoudi/uBlock/issues/1004
     // Support extraction of filters from ABP backup file
-    const abpImporter = function(s) {
-        const reAbpSubscriptionExtractor = /\n\[Subscription\]\n+url=~[^\n]+([\x08-\x7E]*?)(?:\[Subscription\]|$)/ig;
-        const reAbpFilterExtractor = /\[Subscription filters\]([\x08-\x7E]*?)(?:\[Subscription\]|$)/i;
-        let matches = reAbpSubscriptionExtractor.exec(s);
+    var abpImporter = function(s) {
+        var reAbpSubscriptionExtractor = /\n\[Subscription\]\n+url=~[^\n]+([\x08-\x7E]*?)(?:\[Subscription\]|$)/ig;
+        var reAbpFilterExtractor = /\[Subscription filters\]([\x08-\x7E]*?)(?:\[Subscription\]|$)/i;
+        var matches = reAbpSubscriptionExtractor.exec(s);
         // Not an ABP backup file
-        if ( matches === null ) { return s; }
+        if ( matches === null ) {
+            return s;
+        }
         // 
-        const out = [];
+        var out = [];
+        var filterMatch;
         while ( matches !== null ) {
             if ( matches.length === 2 ) {
-                let filterMatch = reAbpFilterExtractor.exec(matches[1].trim());
+                filterMatch = reAbpFilterExtractor.exec(matches[1].trim());
                 if ( filterMatch !== null && filterMatch.length === 2 ) {
                     out.push(filterMatch[1].trim().replace(/\\\[/g, '['));
                 }
@@ -131,22 +110,26 @@ const handleImportFilePicker = function() {
         return out.join('\n');
     };
 
-    const fileReaderOnLoadHandler = function() {
-        const sanitized = abpImporter(this.result);
+    var fileReaderOnLoadHandler = function() {
+        var sanitized = abpImporter(this.result);
         cmEditor.setValue(cmEditor.getValue().trim() + '\n' + sanitized);
     };
-    const file = this.files[0];
-    if ( file === undefined || file.name === '' ) { return; }
-    if ( file.type.indexOf('text') !== 0 ) { return; }
-    const fr = new FileReader();
+    var file = this.files[0];
+    if ( file === undefined || file.name === '' ) {
+        return;
+    }
+    if ( file.type.indexOf('text') !== 0 ) {
+        return;
+    }
+    var fr = new FileReader();
     fr.onload = fileReaderOnLoadHandler;
     fr.readAsText(file);
 };
 
 /******************************************************************************/
 
-const startImportFilePicker = function() {
-    const input = document.getElementById('importFilePicker');
+var startImportFilePicker = function() {
+    var input = document.getElementById('importFilePicker');
     // Reset to empty string, this will ensure an change event is properly
     // triggered if the user pick a file, even if it is the same as the last
     // one picked.
@@ -156,10 +139,10 @@ const startImportFilePicker = function() {
 
 /******************************************************************************/
 
-const exportUserFiltersToFile = function() {
-    const val = cmEditor.getValue().trim();
+var exportUserFiltersToFile = function() {
+    var val = cmEditor.getValue().trim();
     if ( val === '' ) { return; }
-    const filename = vAPI.i18n('1pExportFilename')
+    var filename = vAPI.i18n('1pExportFilename')
         .replace('{{datetime}}', uBlockDashboard.dateNowToSensibleString())
         .replace(/ +/g, '_');
     vAPI.download({
@@ -170,23 +153,24 @@ const exportUserFiltersToFile = function() {
 
 /******************************************************************************/
 
-const applyChanges = function() {
+var applyChanges = function() {
+    var onWritten = function(details) {
+        if ( details.error ) { return; }
+        cachedUserFilters = details.content.trim();
+        allFiltersApplyHandler();
+    };
     messaging.send(
         'dashboard',
         {
             what: 'writeUserFilters',
             content: cmEditor.getValue()
         },
-        details => {
-            if ( details.error ) { return; }
-            cachedUserFilters = details.content.trim();
-            allFiltersApplyHandler();
-        }
+        onWritten
     );
 };
 
-const revertChanges = function() {
-    let content = cachedUserFilters;
+var revertChanges = function() {
+    var content = cachedUserFilters;
     if ( content.length !== 0 ) {
         content += '\n';
     }
@@ -195,11 +179,11 @@ const revertChanges = function() {
 
 /******************************************************************************/
 
-const getCloudData = function() {
+var getCloudData = function() {
     return cmEditor.getValue();
 };
 
-const setCloudData = function(data, append) {
+var setCloudData = function(data, append) {
     if ( typeof data !== 'string' ) { return; }
     if ( append ) {
         data = uBlockDashboard.mergeNewLines(cmEditor.getValue(), data);
@@ -225,5 +209,7 @@ cmEditor.on('changes', userFiltersChanged);
 CodeMirror.commands.save = applyChanges;
 
 /******************************************************************************/
+
+// https://www.youtube.com/watch?v=UNilsLf6eW4
 
 })();

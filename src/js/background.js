@@ -33,31 +33,28 @@ if ( vAPI.webextFlavor === undefined ) {
 
 /******************************************************************************/
 
-const µBlock = (function() { // jshint ignore:line
+var µBlock = (function() { // jshint ignore:line
 
-    const hiddenSettingsDefault = {
+    var oneSecond = 1000,
+        oneMinute = 60 * oneSecond;
+
+    var hiddenSettingsDefault = {
         assetFetchTimeout: 30,
-        autoCommentFilterTemplate: '{{date}} {{origin}}',
         autoUpdateAssetFetchPeriod: 120,
         autoUpdatePeriod: 7,
-        cacheStorageAPI: 'unset',
         cacheStorageCompression: true,
-        cacheControlForFirefox1376932: 'no-cache, no-store, must-revalidate',
-        consoleLogLevel: 'unset',
         debugScriptlets: false,
-        disableWebAssembly: false,
+        cacheControlForFirefox1376932: 'no-cache, no-store, must-revalidate',
         ignoreRedirectFilters: false,
         ignoreScriptInjectFilters: false,
         manualUpdateAssetFetchPeriod: 500,
         popupFontSize: 'unset',
         requestJournalProcessPeriod: 1000,
-        selfieAfter: 11,
-        strictBlockingBypassDuration: 120,
-        suspendTabsUntilReady: 'unset',
+        suspendTabsUntilReady: false,
         userResourcesLocation: 'unset'
     };
 
-    const whitelistDefault = [
+    var whitelistDefault = [
         'about-scheme',
         'chrome-extension-scheme',
         'chrome-scheme',
@@ -66,9 +63,16 @@ const µBlock = (function() { // jshint ignore:line
         'vivaldi-scheme',
         'wyciwyg-scheme',   // Firefox's "What-You-Cache-Is-What-You-Get"
     ];
+    // https://github.com/gorhill/uBlock/issues/3693#issuecomment-379782428
+    if ( vAPI.webextFlavor.soup.has('webext') === false ) {
+        whitelistDefault.push('behind-the-scene');
+    }
 
     return {
         firstInstall: false,
+
+        onBeforeStartQueue: [],
+        onStartCompletedQueue: [],
 
         userSettings: {
             advancedUserEnabled: false,
@@ -94,32 +98,31 @@ const µBlock = (function() { // jshint ignore:line
 
         hiddenSettingsDefault: hiddenSettingsDefault,
         hiddenSettings: (function() {
-            const out = Object.assign({}, hiddenSettingsDefault);
-            const json = vAPI.localStorage.getItem('immediateHiddenSettings');
-            if ( typeof json !== 'string' ) { return out; }
-            try {
-                const o = JSON.parse(json);
-                if ( o instanceof Object ) {
-                    for ( const k in o ) {
-                        if ( out.hasOwnProperty(k) ) { out[k] = o[k]; }
-                    }
-                    self.log.verbosity = out.consoleLogLevel;
-                    if ( typeof out.suspendTabsUntilReady === 'boolean' ) {
-                        out.suspendTabsUntilReady = out.suspendTabsUntilReady
-                            ? 'yes'
-                            : 'unset';
+            var out = Object.assign({}, hiddenSettingsDefault),
+                json = vAPI.localStorage.getItem('immediateHiddenSettings');
+            if ( typeof json === 'string' ) {
+                try {
+                    var o = JSON.parse(json);
+                    if ( o instanceof Object ) {
+                        for ( var k in o ) {
+                            if ( out.hasOwnProperty(k) ) {
+                                out[k] = o[k];
+                            }
+                        }
                     }
                 }
+                catch(ex) {
+                }
             }
-            catch(ex) {
-            }
+            // Remove once 1.15.12+ is widespread.
+            vAPI.localStorage.removeItem('hiddenSettings');
             return out;
         })(),
 
         // Features detection.
         privacySettingsSupported: vAPI.browserSettings instanceof Object,
         cloudStorageSupported: vAPI.cloud instanceof Object,
-        canFilterResponseData: typeof browser.webRequest.filterResponseData === 'function',
+        canFilterResponseBody: vAPI.net.canFilterResponseBody === true,
         canInjectScriptletsNow: vAPI.webextFlavor.soup.has('chromium'),
 
         // https://github.com/chrisaljoudi/uBlock/issues/180
@@ -137,8 +140,8 @@ const µBlock = (function() { // jshint ignore:line
 
         // Read-only
         systemSettings: {
-            compiledMagic: 7,   // Increase when compiled format changes
-            selfieMagic: 8      // Increase when selfie format changes
+            compiledMagic: 5,   // Increase when compiled format changes
+            selfieMagic: 4      // Increase when selfie format changes
         },
 
         restoreBackupSettings: {
@@ -160,6 +163,8 @@ const µBlock = (function() { // jshint ignore:line
 
         selectedFilterLists: [],
         availableFilterLists: {},
+
+        selfieAfter: 17 * oneMinute,
 
         pageStores: new Map(),
         pageStoresToken: 0,

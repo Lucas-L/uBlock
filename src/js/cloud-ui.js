@@ -189,7 +189,7 @@ var onInitialize = function(options) {
     self.cloud.options = options;
 
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', 'cloud-ui.html', true);
+    xhr.open('GET', 'plugins/uBlock/cloud-ui.html', true);
     xhr.overrideMimeType('text/html;charset=utf-8');
     xhr.responseType = 'text';
     xhr.onload = function() {

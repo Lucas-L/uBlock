@@ -69,7 +69,7 @@ body.hideUnused #listsOfBlockedHostsPrompt:before {
     margin-right: 0.5em;
     unicode-bidi: embed;
     }
-.listEntry.toRemove > input[type="checkbox"] {
+.listEntry.toRemove input[type="checkbox"] {
     visibility: hidden;
     }
 .listEntry.toRemove > a.content {
@@ -108,8 +108,11 @@ body.hideUnused #listsOfBlockedHostsPrompt:before {
     display: none;
     font-size: smaller;
 }
-.listEntry > input[type="checkbox"]:checked ~ .counts {
+.listEntry input[type="checkbox"]:checked ~ .counts {
     display: inline;
+    font-size: 15px;
+    margin-left: 6px;
+    vertical-align: middle;
 }
 .dim {
     opacity: 0.6;
@@ -138,7 +141,7 @@ body[dir=rtl] #buttonApply {
 .listEntry span.unsecure {
     color: darkred;
     }
-.listEntry.unsecure > input[type="checkbox"]:checked ~ span.unsecure {
+.listEntry.unsecure  input[type="checkbox"]:checked ~ span.unsecure {
     display: inline-block;
     }
 .listEntry span.failed {
@@ -150,23 +153,25 @@ body[dir=rtl] #buttonApply {
 .listEntry span.cache {
     cursor: pointer;
     }
-.listEntry.cached:not(.obsolete) > input[type="checkbox"]:checked ~ span.cache {
+.listEntry.cached:not(.obsolete)  input[type="checkbox"]:checked ~ span.cache {
     display: inline-block;
     }
 .listEntry span.obsolete {
     color: hsl(36, 100%, 40%);
     }
-body:not(.updating) .listEntry.obsolete > input[type="checkbox"]:checked ~ span.obsolete {
+body:not(.updating) .listEntry.obsolete  input[type="checkbox"]:checked ~ span.obsolete {
     display: inline-block;
     }
 .listEntry span.updating {
     transform-origin: 50% 46%;
+    margin-top: 0px;
     }
-body.updating .listEntry.obsolete > input[type="checkbox"]:checked ~ span.updating {
+body.updating .listEntry.obsolete  input[type="checkbox"]:checked ~ span.updating {
     animation: spin 2s linear infinite;
     display: inline-block;
     }
-.listEntry.toImport > input[type="checkbox"] ~ textarea {
+/*.listEntry.toImport  input[type="checkbox"] .mbsc-input-wrap > textarea*/
+.listEntry.toImport input[type="checkbox"] ~ .mbsc-input-wrap > textarea {
     border: 1px solid #ccc;
     box-sizing: border-box;
     display: block;
@@ -178,6 +183,22 @@ body.updating .listEntry.obsolete > input[type="checkbox"]:checked ~ span.updati
     white-space: pre;
     width: calc(100% - 4em);
     }
-.listEntry.toImport > input[type="checkbox"]:checked ~ textarea {
+/*.listEntry.toImport  input[type="checkbox"]:checked .mbsc-input-wrap > textarea */
+.listEntry.toImport input[type="checkbox"]:checked ~ .mbsc-input-wrap > textarea{
     visibility: visible;
+    }
+
+    .checkboxImport{
+        width: 100%;
+    }
+    .checkboxImport .mbsc-input-wrap{
+        width: 90%;
+        position: absolute;
+        top: 30px;
+        font-size: 14px !important;
+    }
+
+    .checkboxImport .mbsc-label{
+        font-size: 14px !important;
+        margin-top: 3px !important;
     }

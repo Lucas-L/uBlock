@@ -6,7 +6,8 @@ html#ublock0-epicker,
 #ublock0-epicker body {
     background: transparent !important;
     color: black !important;
-    font: 12px sans-serif !important;
+    font-size: 13px !important;
+    font-family: 'Open Sans',sans-serif !important;
     height: 100% !important;
     margin: 0 !important;
     overflow: hidden !important;
@@ -24,16 +25,18 @@ html#ublock0-epicker,
     margin: 0.25em 0 0 0 !important;
 }
 #ublock0-epicker button {
-    background-color: #ccc !important;
-    border: 1px solid #aaa !important;
-    border-radius: 3px !important;
+    background-color: #00abff !important;
+    border: 1px solid #00abff !important;
+    border-radius: 4px !important;
     box-sizing: border-box !important;
     box-shadow: none !important;
-    color: #000 !important;
+    color: #ffffff !important;
     cursor: pointer !important;
     margin: 0 0 0 2px !important;
     opacity: 0.7 !important;
-    padding: 4px 6px !important;
+    padding: .6785em !important;
+    margin-top: 5px !important;
+    text-transform: uppercase;
 }
 #ublock0-epicker button:first-of-type {
     margin-left: 0 !important;
@@ -46,8 +49,8 @@ html#ublock0-epicker,
     opacity: 1 !important;
 }
 #ublock0-epicker #create:not(:disabled) {
-    background-color: hsl(36, 100%, 83%) !important;
-    border-color: hsl(36, 50%, 60%) !important;
+    background-color: hsla(200, 100%, 50%, 0.63) !important;
+    border-color: hsla(200, 100%, 50%, 0.63) !important;
 }
 #ublock0-epicker #preview {
     float: left !important;
@@ -83,7 +86,6 @@ html#ublock0-epicker,
     padding: 2px !important;
     resize: none !important;
     width: 100% !important;
-    word-break: break-all !important;
 }
 #ublock0-epicker #resultsetCount {
     background-color: #aaa !important;
@@ -168,8 +170,8 @@ html#ublock0-epicker,
     stroke: none !important;
 }
 #ublock0-epicker aside {
-    background-color: #eee !important;
-    border: 1px solid #aaa !important;
+    background-color: #ffffff !important;
+    border: 1px solid #dfdfdf !important;
     bottom: 4px !important;
     box-sizing: border-box !important;
     min-width: 24em !important;
@@ -180,23 +182,9 @@ html#ublock0-epicker,
     width: calc(40% - 4px) !important;
 }
 #ublock0-epicker body.paused > aside {
-    opacity: 0.1;
+    opacity: 0.1 !important;
     visibility: visible !important;
     z-index: 100 !important;
-}
-/**
-    https://github.com/gorhill/uBlock/issues/3449
-    https://github.com/uBlockOrigin/uBlock-issues/issues/55
-**/
-@keyframes startDialog {
-  0% { opacity: 1.0; }
-  60% { opacity: 1.0; }
-  100% { opacity: 0.1; }
-}
-#ublock0-epicker body.paused > aside:not(:hover):not(.show) {
-    animation-duration: 1.6s !important;
-    animation-name: startDialog !important;
-    animation-timing-function: linear !important;
 }
 #ublock0-epicker body.paused > aside:hover {
     opacity: 1 !important;

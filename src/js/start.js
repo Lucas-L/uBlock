@@ -29,7 +29,7 @@
 
 /******************************************************************************/
 
-const µb = µBlock;
+var µb = µBlock;
 
 /******************************************************************************/
 
@@ -48,22 +48,25 @@ vAPI.app.onShutdown = function() {
 
 /******************************************************************************/
 
+var processCallbackQueue = function(queue, callback) {
+    var processOne = function() {
+        var fn = queue.pop();
+        if ( fn ) {
+            fn(processOne);
+        } else if ( typeof callback === 'function' ) {
+            callback();
+        }
+    };
+    processOne();
+};
+
+/******************************************************************************/
+
 // Final initialization steps after all needed assets are in memory.
 // - Initialize internal state with maybe already existing tabs.
 // - Schedule next update operation.
 
 var onAllReady = function() {
-    µb.webRequest.start();
-
-    // Ensure that the resources allocated for decompression purpose (likely
-    // large buffers) are garbage-collectable immediately after launch.
-    // Otherwise I have observed that it may take quite a while before the
-    // garbage collection of these resources kicks in. Relinquishing as soon
-    // as possible ensure minimal memory usage baseline.
-    µb.lz4Codec.relinquish();
-
-    initializeTabs();
-
     // https://github.com/chrisaljoudi/uBlock/issues/184
     // Check for updates not too far in the future.
     µb.assets.addObserver(µb.assetObserver.bind(µb));
@@ -82,56 +85,7 @@ var onAllReady = function() {
     µb.contextMenu.update(null);
     µb.firstInstall = false;
 
-    log.info(`All ready ${Date.now()-vAPI.T0} ms after launch`);
-};
-
-/******************************************************************************/
-
-// This is called only once, when everything has been loaded in memory after
-// the extension was launched. It can be used to inject content scripts
-// in already opened web pages, to remove whatever nuisance could make it to
-// the web pages before uBlock was ready.
-
-let initializeTabs = function() {
-    let handleScriptResponse = function(tabId, results) {
-        if (
-            Array.isArray(results) === false ||
-            results.length === 0 ||
-            results[0] !== true
-        ) {
-            return;
-        }
-        // Inject dclarative content scripts programmatically.
-        let manifest = chrome.runtime.getManifest();
-        if ( manifest instanceof Object === false ) { return; }
-        for ( let contentScript of manifest.content_scripts ) {
-            for ( let file of contentScript.js ) {
-                vAPI.tabs.injectScript(tabId, {
-                    file: file,
-                    allFrames: contentScript.all_frames,
-                    runAt: contentScript.run_at
-                });
-            }
-        }
-    };
-    let bindToTabs = function(tabs) {
-        for ( let tab of tabs  ) {
-            µb.tabContextManager.commit(tab.id, tab.url);
-            µb.bindTabToPageStats(tab.id);
-            // https://github.com/chrisaljoudi/uBlock/issues/129
-            //   Find out whether content scripts need to be injected
-            //   programmatically. This may be necessary for web pages which
-            //   were loaded before uBO launched.
-            if ( /^https?:\/\//.test(tab.url) === false ) { continue; }
-            vAPI.tabs.injectScript(
-                tab.id,
-                { file: 'js/scriptlets/should-inject-contentscript.js' },
-                handleScriptResponse.bind(null, tab.id)
-            );
-        }
-    };
-
-    browser.tabs.query({ url: '<all_urls>' }, bindToTabs);
+    processCallbackQueue(µb.onStartCompletedQueue);
 };
 
 /******************************************************************************/
@@ -139,29 +93,22 @@ let initializeTabs = function() {
 // Filtering engines dependencies:
 // - PSL
 
-const onPSLReady = function() {
-    log.info(`PSL ready ${Date.now()-vAPI.T0} ms after launch`);
-
-    µb.selfieManager.load().then(valid => {
+var onPSLReady = function() {
+    µb.selfieManager.load(function(valid) {
         if ( valid === true ) {
-            log.info(`Selfie ready ${Date.now()-vAPI.T0} ms after launch`);
-            onAllReady();
-            return;
+            return onAllReady();
         }
-        µb.loadFilterLists(( ) => {
-            log.info(`Filter lists ready ${Date.now()-vAPI.T0} ms after launch`);
-            onAllReady();
-        });
+        µb.loadFilterLists(onAllReady);
     });
 };
 
 /******************************************************************************/
 
-const onCommandShortcutsReady = function(commandShortcuts) {
+var onCommandShortcutsReady = function(commandShortcuts) {
     if ( Array.isArray(commandShortcuts) === false ) { return; }
     µb.commandShortcuts = new Map(commandShortcuts);
     if ( µb.canUpdateShortcuts === false ) { return; }
-    for ( const entry of commandShortcuts ) {
+    for ( let entry of commandShortcuts ) {
         vAPI.commands.update({ name: entry[0], shortcut: entry[1] });
     }
 };
@@ -170,7 +117,7 @@ const onCommandShortcutsReady = function(commandShortcuts) {
 
 // To bring older versions up to date
 
-const onVersionReady = function(lastVersion) {
+var onVersionReady = function(lastVersion) {
     if ( lastVersion === vAPI.app.version ) { return; }
 
     // Since AMO does not allow updating resources.txt, force a reload when a
@@ -185,7 +132,7 @@ const onVersionReady = function(lastVersion) {
 
     // If unused, just comment out for when we need to compare versions in the
     // future.
-    const intFromVersion = function(s) {
+    let intFromVersion = function(s) {
         let parts = s.match(/(?:^|\.|b|rc)\d+/g);
         if ( parts === null ) { return 0; }
         let vint = 0;
@@ -232,7 +179,7 @@ const onVersionReady = function(lastVersion) {
 // Whitelist parser needs PSL to be ready.
 // gorhill 2014-12-15: not anymore
 
-const onNetWhitelistReady = function(netWhitelistRaw) {
+var onNetWhitelistReady = function(netWhitelistRaw) {
     µb.netWhitelist = µb.whitelistFromString(netWhitelistRaw);
     µb.netWhitelistModifyTime = Date.now();
 };
@@ -241,10 +188,8 @@ const onNetWhitelistReady = function(netWhitelistRaw) {
 
 // User settings are in memory
 
-const onUserSettingsReady = function(fetched) {
-    log.info(`User settings ready ${Date.now()-vAPI.T0} ms after launch`);
-
-    const userSettings = µb.userSettings;
+var onUserSettingsReady = function(fetched) {
+    var userSettings = µb.userSettings;
 
     fromFetch(userSettings, fetched);
 
@@ -275,7 +220,7 @@ const onUserSettingsReady = function(fetched) {
 
 // Housekeeping, as per system setting changes
 
-const onSystemSettingsReady = function(fetched) {
+var onSystemSettingsReady = function(fetched) {
     var mustSaveSystemSettings = false;
     if ( fetched.compiledMagic !== µb.systemSettings.compiledMagic ) {
         µb.assets.remove(/^compiled\//);
@@ -293,9 +238,7 @@ const onSystemSettingsReady = function(fetched) {
 
 /******************************************************************************/
 
-const onFirstFetchReady = function(fetched) {
-    log.info(`First fetch ready ${Date.now()-vAPI.T0} ms after launch`);
-
+var onFirstFetchReady = function(fetched) {
     // https://github.com/gorhill/uBlock/issues/747
     µb.firstInstall = fetched.version === '0.0.0.0';
 
@@ -308,35 +251,37 @@ const onFirstFetchReady = function(fetched) {
     onVersionReady(fetched.version);
     onCommandShortcutsReady(fetched.commandShortcuts);
 
-    µb.loadPublicSuffixList().then(( ) => {
-        onPSLReady();
-    });
+    µb.loadPublicSuffixList(onPSLReady);
     µb.loadRedirectResources();
 };
 
 /******************************************************************************/
 
-const toFetch = function(from, fetched) {
-    for ( const k in from ) {
-        if ( from.hasOwnProperty(k) === false ) { continue; }
+var toFetch = function(from, fetched) {
+    for ( var k in from ) {
+        if ( from.hasOwnProperty(k) === false ) {
+            continue;
+        }
         fetched[k] = from[k];
     }
 };
 
-const fromFetch = function(to, fetched) {
-    for ( const k in to ) {
-        if ( to.hasOwnProperty(k) === false ) { continue; }
-        if ( fetched.hasOwnProperty(k) === false ) { continue; }
+var fromFetch = function(to, fetched) {
+    for ( var k in to ) {
+        if ( to.hasOwnProperty(k) === false ) {
+            continue;
+        }
+        if ( fetched.hasOwnProperty(k) === false ) {
+            continue;
+        }
         to[k] = fetched[k];
     }
 };
 
 /******************************************************************************/
 
-const onSelectedFilterListsReady = function() {
-    log.info(`List selection ready ${Date.now()-vAPI.T0} ms after launch`);
-
-    const fetchableProps = {
+var onSelectedFilterListsLoaded = function() {
+    var fetchableProps = {
         'commandShortcuts': [],
         'compiledMagic': 0,
         'dynamicFilteringString': [
@@ -371,41 +316,22 @@ const onSelectedFilterListsReady = function() {
 
 /******************************************************************************/
 
-const onHiddenSettingsReady = function() {
-    return µb.cacheStorage.select(
-        µb.hiddenSettings.cacheStorageAPI
-    ).then(backend => {
-        log.info(`Backend storage for cache will be ${backend}`);
-    });
-};
-
-/******************************************************************************/
-
 // TODO(seamless migration):
 // Eventually selected filter list keys will be loaded as a fetchable
 // property. Until then we need to handle backward and forward
 // compatibility, this means a special asynchronous call to load selected
 // filter lists.
 
-const onAdminSettingsRestored = function() {
-    log.info(`Admin settings ready ${Date.now()-vAPI.T0} ms after launch`);
-
-    Promise.all([
-        µb.loadHiddenSettings().then(( ) =>
-            onHiddenSettingsReady()
-        ),
-        µb.loadSelectedFilterLists(),
-    ]).then(( ) =>
-        onSelectedFilterListsReady()
-    );
+var onAdminSettingsRestored = function() {
+    µb.loadSelectedFilterLists(onSelectedFilterListsLoaded);
 };
 
 /******************************************************************************/
 
 return function() {
-    // https://github.com/gorhill/uBlock/issues/531
-    µb.restoreAdminSettings().then(( ) => {
-        onAdminSettingsRestored();
+    processCallbackQueue(µb.onBeforeStartQueue, function() {
+        // https://github.com/gorhill/uBlock/issues/531
+        µb.restoreAdminSettings(onAdminSettingsRestored);
     });
 };
 

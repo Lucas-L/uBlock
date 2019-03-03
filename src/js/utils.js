@@ -1,7 +1,7 @@
 /*******************************************************************************
 
     uBlock Origin - a browser extension to block requests.
-    Copyright (C) 2014-present Raymond Hill
+    Copyright (C) 2014-2018 Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -224,49 +224,18 @@
 
 /******************************************************************************/
 
-µBlock.CompiledLineIO = {
-    serialize: JSON.stringify,
-    unserialize: JSON.parse,
-    blockStartPrefix: '#block-start-',  // ensure no special regex characters
-    blockEndPrefix: '#block-end-',      // ensure no special regex characters
-
-    Writer: function() {
-        this.io = µBlock.CompiledLineIO;
-        this.blockId = undefined;
-        this.block = undefined;
-        this.stringifier = this.io.serialize;
-        this.blocks = new Map();
-        this.properties = new Map();
-    },
-
-    Reader: function(raw, blockId) {
-        this.io = µBlock.CompiledLineIO;
-        this.block = '';
-        this.len = 0;
-        this.offset = 0;
-        this.line = '';
-        this.parser = this.io.unserialize;
-        this.blocks = new Map();
-        this.properties = new Map();
-        let reBlockStart = new RegExp(
-            '^' + this.io.blockStartPrefix + '(\\d+)\\n',
-            'gm'
-        );
-        let match = reBlockStart.exec(raw);
-        while ( match !== null ) {
-            let beg = match.index + match[0].length;
-            let end = raw.indexOf(this.io.blockEndPrefix + match[1], beg);
-            this.blocks.set(parseInt(match[1], 10), raw.slice(beg, end));
-            reBlockStart.lastIndex = end;
-            match = reBlockStart.exec(raw);
-        }
-        if ( blockId !== undefined ) {
-            this.select(blockId);
-        }
-    }
+µBlock.CompiledLineWriter = function() {
+    this.blockId = undefined;
+    this.block = undefined;
+    this.blocks = new Map();
+    this.stringifier = JSON.stringify;
 };
 
-µBlock.CompiledLineIO.Writer.prototype = {
+µBlock.CompiledLineWriter.fingerprint = function(args) {
+    return JSON.stringify(args);
+};
+
+µBlock.CompiledLineWriter.prototype = {
     push: function(args) {
         this.block[this.block.length] = this.stringifier(args);
     },
@@ -279,26 +248,50 @@
         }
     },
     toString: function() {
-        let result = [];
-        for ( let [ id, lines ] of this.blocks ) {
-            if ( lines.length === 0 ) { continue; }
+        var result = [];
+        for ( var entry of this.blocks ) {
+            if ( entry[1].length === 0 ) { continue; }
             result.push(
-                this.io.blockStartPrefix + id,
-                lines.join('\n'),
-                this.io.blockEndPrefix + id
+                '#block-start-' + entry[0],
+                entry[1].join('\n'),
+                '#block-end-' + entry[0]
             );
         }
         return result.join('\n');
     }
 };
 
-µBlock.CompiledLineIO.Reader.prototype = {
+/******************************************************************************/
+
+µBlock.CompiledLineReader = function(raw, blockId) {
+    this.block = '';
+    this.len = 0;
+    this.offset = 0;
+    this.line = '';
+    this.parser = JSON.parse;
+    this.blocks = new Map();
+    var reBlockStart = /^#block-start-(\d+)\n/gm,
+        match = reBlockStart.exec(raw),
+        beg, end;
+    while ( match !== null ) {
+        beg = match.index + match[0].length;
+        end = raw.indexOf('#block-end-' + match[1], beg);
+        this.blocks.set(parseInt(match[1], 10), raw.slice(beg, end));
+        reBlockStart.lastIndex = end;
+        match = reBlockStart.exec(raw);
+    }
+    if ( blockId !== undefined ) {
+        this.select(blockId);
+    }
+};
+
+µBlock.CompiledLineReader.prototype = {
     next: function() {
         if ( this.offset === this.len ) {
             this.line = '';
             return false;
         }
-        let pos = this.block.indexOf('\n', this.offset);
+        var pos = this.block.indexOf('\n', this.offset);
         if ( pos !== -1 ) {
             this.line = this.block.slice(this.offset, pos);
             this.offset = pos + 1;
@@ -359,7 +352,7 @@
 /******************************************************************************/
 
 µBlock.openNewTab = function(details) {
-    if ( details.url.startsWith('logger-ui.html') ) {
+    if ( details.url.startsWith('plugins/uBlock/logger-ui.html') ) {
         if ( details.shiftKey ) {
             this.changeUserSettings(
                 'alwaysDetachLogger',
@@ -367,21 +360,6 @@
             );
         }
         details.popup = this.userSettings.alwaysDetachLogger;
-        if ( details.popup ) {
-            const url = new URL(vAPI.getURL(details.url));
-            url.searchParams.set('popup', '1');
-            details.url = url.href;
-            let popupLoggerBox;
-            try {
-                popupLoggerBox = JSON.parse(
-                    vAPI.localStorage.getItem('popupLoggerBox')
-                );
-            } catch(ex) {
-            }
-            if ( popupLoggerBox !== undefined ) {
-                details.box = popupLoggerBox;
-            }
-        }
     }
     vAPI.tabs.open(details);
 };
@@ -486,204 +464,5 @@
             decomposed.length = i;
         }
         return decomposed;
-    };
-})();
-
-/******************************************************************************/
-
-// TODO: evaluate using TextEncoder/TextDecoder
-
-µBlock.orphanizeString = function(s) {
-    return JSON.parse(JSON.stringify(s));
-};
-
-/******************************************************************************/
-
-// Custom base128 encoder/decoder
-//
-// TODO:
-//   Could expand the LZ4 codec API to be able to return UTF8-safe string
-//   representation of a compressed buffer, and thus the code below could be
-//   moved LZ4 codec-side.
-
-µBlock.base128 = {
-    encode: function(arrbuf, arrlen) {
-        const inbuf = new Uint8Array(arrbuf, 0, arrlen);
-        const inputLength = arrlen;
-        let _7cnt = Math.floor(inputLength / 7);
-        let outputLength = _7cnt * 8;
-        let _7rem = inputLength % 7;
-        if ( _7rem !== 0 ) {
-            outputLength += 1 + _7rem;
-        }
-        const outbuf = new Uint8Array(outputLength);
-        let msbits, v;
-        let i = 0, j = 0;
-        while ( _7cnt--  ) {
-            v = inbuf[i+0];
-            msbits  = (v & 0x80) >>> 7;
-            outbuf[j+1] = v & 0x7F;
-            v = inbuf[i+1];
-            msbits |= (v & 0x80) >>> 6;
-            outbuf[j+2] = v & 0x7F;
-            v = inbuf[i+2];
-            msbits |= (v & 0x80) >>> 5;
-            outbuf[j+3] = v & 0x7F;
-            v = inbuf[i+3];
-            msbits |= (v & 0x80) >>> 4;
-            outbuf[j+4] = v & 0x7F;
-            v = inbuf[i+4];
-            msbits |= (v & 0x80) >>> 3;
-            outbuf[j+5] = v & 0x7F;
-            v = inbuf[i+5];
-            msbits |= (v & 0x80) >>> 2;
-            outbuf[j+6] = v & 0x7F;
-            v = inbuf[i+6];
-            msbits |= (v & 0x80) >>> 1;
-            outbuf[j+7] = v & 0x7F;
-            outbuf[j+0] = msbits;
-            i += 7; j += 8;
-        }
-        if ( _7rem > 0 ) {
-            msbits = 0;
-            for ( let ir = 0; ir < _7rem; ir++ ) {
-                v = inbuf[i+ir];
-                msbits |= (v & 0x80) >>> (7 - ir);
-                outbuf[j+ir+1] = v & 0x7F;
-            }
-            outbuf[j+0] = msbits;
-        }
-        const textDecoder = new TextDecoder();
-        return textDecoder.decode(outbuf);
-    },
-    // TODO:
-    //   Surprisingly, there does not seem to be any performance gain when
-    //   first converting the input string into a Uint8Array through
-    //   TextEncoder. Investigate again to confirm original findings and
-    //   to find out whether results have changed. Not using TextEncoder()
-    //   to create an intermediate input buffer lower peak memory usage
-    //   at selfie load time.
-    //
-    //   const textEncoder = new TextEncoder();
-    //   const inbuf = textEncoder.encode(instr);
-    //   const inputLength = inbuf.byteLength;
-    decode: function(instr, arrbuf) {
-        const inputLength = instr.length;
-        let _8cnt = inputLength >>> 3;
-        let outputLength = _8cnt * 7;
-        let _8rem = inputLength % 8;
-        if ( _8rem !== 0 ) {
-            outputLength += _8rem - 1;
-        }
-        const outbuf = arrbuf instanceof ArrayBuffer === false
-            ? new Uint8Array(outputLength)
-            : new Uint8Array(arrbuf);
-        let msbits;
-        let i = 0, j = 0;
-        while ( _8cnt-- ) {
-            msbits = instr.charCodeAt(i+0);
-            outbuf[j+0] = msbits << 7 & 0x80 | instr.charCodeAt(i+1);
-            outbuf[j+1] = msbits << 6 & 0x80 | instr.charCodeAt(i+2);
-            outbuf[j+2] = msbits << 5 & 0x80 | instr.charCodeAt(i+3);
-            outbuf[j+3] = msbits << 4 & 0x80 | instr.charCodeAt(i+4);
-            outbuf[j+4] = msbits << 3 & 0x80 | instr.charCodeAt(i+5);
-            outbuf[j+5] = msbits << 2 & 0x80 | instr.charCodeAt(i+6);
-            outbuf[j+6] = msbits << 1 & 0x80 | instr.charCodeAt(i+7);
-            i += 8; j += 7;
-        }
-        if ( _8rem > 1 ) {
-            msbits = instr.charCodeAt(i+0);
-            for ( let ir = 1; ir < _8rem; ir++ ) {
-                outbuf[j+ir-1] = msbits << (8-ir) & 0x80 | instr.charCodeAt(i+ir);
-            }
-        }
-        return outbuf;
-    },
-    decodeSize: function(instr) {
-        const size = (instr.length >>> 3) * 7;
-        const rem = instr.length & 7;
-        return rem === 0 ? size : size + rem - 1;
-    },
-};
-
-/******************************************************************************/
-
-// The requests.json.gz file can be downloaded from:
-//   https://cdn.cliqz.com/adblocking/requests_top500.json.gz
-//
-// Which is linked from:
-//   https://whotracks.me/blog/adblockers_performance_study.html
-//
-// Copy the file into ./tmp/requests.json.gz
-//
-// If the file is present when you build uBO using `make-[target].sh` from
-// the shell, the resulting package will have `./assets/requests.json`, which
-// will be looked-up by the method below to launch a benchmark session.
-//
-// From uBO's dev console, launch the benchmark:
-//   µBlock.staticNetFilteringEngine.benchmark();
-//
-// The advanced setting `consoleLogLevel` must be set to `info` to see the
-// results in uBO's dev console, see:
-//   https://github.com/gorhill/uBlock/wiki/Advanced-settings#consoleloglevel
-//
-// The usual browser dev tools can be used to obtain useful profiling
-// data, i.e. start the profiler, call the benchmark method from the
-// console, then stop the profiler when it completes.
-//
-// Keep in mind that the measurements at the blog post above where obtained
-// with ONLY EasyList. The CPU reportedly used was:
-//   https://www.cpubenchmark.net/cpu.php?cpu=Intel+Core+i7-6600U+%40+2.60GHz&id=2608
-//
-// Rename ./tmp/requests.json.gz to something else if you no longer want
-// ./assets/requests.json in the build.
-
-µBlock.loadBenchmarkDataset = (function() {
-    let datasetPromise;
-    let ttlTimer;
-
-    return function() {
-        if ( ttlTimer !== undefined ) {
-            clearTimeout(ttlTimer);
-            ttlTimer = undefined;
-        }
-
-        vAPI.setTimeout(( ) => {
-            ttlTimer = undefined;
-            datasetPromise = undefined;
-        }, 60000);
-
-        if ( datasetPromise !== undefined ) {
-            return datasetPromise;
-        }
-
-        datasetPromise = new Promise(resolve => {
-            console.info(`Loading benchmark dataset...`);
-            const url = vAPI.getURL('/assets/requests.json');
-            µBlock.assets.fetchText(url, details => {
-                if ( details.error !== undefined ) {
-                    datasetPromise = undefined;
-                    console.info(`Not found: ${url}`);
-                    resolve();
-                    return;
-                }
-                console.info(`Parsing benchmark dataset...`);
-                const requests = [];
-                const lineIter = new µBlock.LineIterator(details.content);
-                while ( lineIter.eot() === false ) {
-                    let request;
-                    try {
-                        request = JSON.parse(lineIter.next());
-                    } catch(ex) {
-                    }
-                    if ( request instanceof Object === false ) { continue; }
-                    if ( !request.frameUrl || !request.url ) { continue; }
-                    requests.push(request);
-                }
-                resolve(requests);
-            });
-        });
-
-        return datasetPromise;
     };
 })();

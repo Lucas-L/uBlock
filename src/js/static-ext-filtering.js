@@ -51,24 +51,25 @@
 **/
 
 µBlock.staticExtFilteringEngine = (function() {
-    const µb = µBlock;
-    const reHasUnicode = /[^\x00-\x7F]/;
-    const reParseRegexLiteral = /^\/(.+)\/([imu]+)?$/;
-    const emptyArray = [];
-    const parsed = {
-        hostnames: [],
-        exception: false,
-        suffix: ''
-    };
+    var µb = µBlock,
+        reHostnameSeparator = /\s*,\s*/,
+        reHasUnicode = /[^\x00-\x7F]/,
+        reParseRegexLiteral = /^\/(.+)\/([imu]+)?$/,
+        emptyArray = [],
+        parsed = {
+            hostnames: [],
+            exception: false,
+            suffix: ''
+        };
 
     // To be called to ensure no big parent string of a string slice is
     // left into memory after parsing filter lists is over.
-    const resetParsed = function() {
+    var resetParsed = function() {
         parsed.hostnames = [];
         parsed.suffix = '';
     };
 
-    const isValidCSSSelector = (function() {
+    var isValidCSSSelector = (function() {
         var div = document.createElement('div'),
             matchesFn;
         // Keep in mind:
@@ -108,7 +109,7 @@
     })();
 
 
-    const isBadRegex = function(s) {
+    var isBadRegex = function(s) {
         try {
             void new RegExp(s);
         } catch (ex) {
@@ -118,42 +119,24 @@
         return false;
     };
 
-    const translateAdguardCSSInjectionFilter = function(suffix) {
-        const matches = /^([^{]+)\{([^}]+)\}$/.exec(suffix);
+    var translateAdguardCSSInjectionFilter = function(suffix) {
+        var matches = /^([^{]+)\{([^}]+)\}$/.exec(suffix);
         if ( matches === null ) { return ''; }
-        const selector = matches[1].trim();
-        const style = matches[2].trim();
-        // For some reasons, many of Adguard's plain cosmetic filters are
-        // "disguised" as style-based cosmetic filters: convert such filters
-        // to plain cosmetic filters.
-        return /display\s*:\s*none\s*!important;?$/.test(style)
-            ? selector
-            : selector + ':style(' +  style + ')';
+        return matches[1].trim() + ':style(' +  matches[2].trim() + ')';
     };
 
-    const hostnamesFromPrefix = function(s) {
-        const hostnames = [];
-        const hasUnicode = reHasUnicode.test(s);
-        let beg = 0;
-        while ( beg < s.length ) {
-            let end = s.indexOf(',', beg);
-            if ( end === -1 ) { end = s.length; }
-            let hostname = s.slice(beg, end).trim();
-            if ( hostname.length !== 0 ) {
-                if ( hasUnicode ) {
-                    hostname = hostname.charCodeAt(0) === 0x7E /* '~' */
-                        ? '~' + punycode.toASCII(hostname.slice(1))
-                        : punycode.toASCII(hostname);
-                }
-                hostnames.push(hostname);
-            }
-            beg = end + 1;
+    var toASCIIHostnames = function(hostnames) {
+        var i = hostnames.length;
+        while ( i-- ) {
+            var hostname = hostnames[i];
+            hostnames[i] = hostname.charCodeAt(0) === 0x7E /* '~' */ ?
+                '~' + punycode.toASCII(hostname.slice(1)) :
+                punycode.toASCII(hostname);
         }
-        return hostnames;
     };
 
-    const compileProceduralSelector = (function() {
-        const reProceduralOperator = new RegExp([
+    var compileProceduralSelector = (function() {
+        var reProceduralOperator = new RegExp([
             '^(?:',
                 [
                 '-abp-contains',
@@ -166,24 +149,22 @@
                 'matches-css',
                 'matches-css-after',
                 'matches-css-before',
-                'not',
-                'watch-attrs',
                 'xpath'
                 ].join('|'),
             ')\\('
         ].join(''));
 
-        const reEscapeRegex = /[.*+?^${}()|[\]\\]/g,
+        var reEscapeRegex = /[.*+?^${}()|[\]\\]/g,
             reNeedScope = /^\s*[+>~]/,
             reIsDanglingSelector = /(?:[+>~]\s*|\s+)$/;
 
-        const regexToRawValue = new Map();
-        let lastProceduralSelector = '',
-            lastProceduralSelectorCompiled;
+        var lastProceduralSelector = '',
+            lastProceduralSelectorCompiled,
+            regexToRawValue = new Map();
 
-        const compileText = function(s) {
-            const match = reParseRegexLiteral.exec(s);
-            let regexDetails;
+        var compileText = function(s) {
+            var regexDetails,
+                match = reParseRegexLiteral.exec(s);
             if ( match !== null ) {
                 regexDetails = match[1];
                 if ( isBadRegex(regexDetails) ) { return; }
@@ -197,13 +178,13 @@
             return regexDetails;
         };
 
-        const compileCSSDeclaration = function(s) {
-            const pos = s.indexOf(':');
+        var compileCSSDeclaration = function(s) {
+            var name, value, regexDetails,
+                pos = s.indexOf(':');
             if ( pos === -1 ) { return; }
-            const name = s.slice(0, pos).trim();
-            const value = s.slice(pos + 1).trim();
-            const match = reParseRegexLiteral.exec(value);
-            let regexDetails;
+            name = s.slice(0, pos).trim();
+            value = s.slice(pos + 1).trim();
+            var match = reParseRegexLiteral.exec(value);
             if ( match !== null ) {
                 regexDetails = match[1];
                 if ( isBadRegex(regexDetails) ) { return; }
@@ -217,7 +198,7 @@
             return { name: name, value: regexDetails };
         };
 
-        const compileConditionalSelector = function(s) {
+        var compileConditionalSelector = function(s) {
             // https://github.com/AdguardTeam/ExtendedCss/issues/31#issuecomment-302391277
             // Prepend `:scope ` if needed.
             if ( reNeedScope.test(s) ) {
@@ -226,34 +207,7 @@
             return compile(s);
         };
 
-        const compileNotSelector = function(s) {
-            // https://github.com/uBlockOrigin/uBlock-issues/issues/341#issuecomment-447603588
-            //   Reject instances of :not() filters for which the argument is
-            //   a valid CSS selector, otherwise we would be adversely
-            //   changing the behavior of CSS4's :not().
-            if ( isValidCSSSelector(s) === false ) {
-                return compileConditionalSelector(s);
-            }
-        };
-
-        const compileSpathExpression = function(s) {
-            if ( isValidCSSSelector('*' + s) ) {
-                return s;
-            }
-        };
-
-        const compileAttrList = function(s) {
-            const attrs = s.split('\s*,\s*');
-            const out = [];
-            for ( const attr of attrs ) {
-                if ( attr !== '' ) {
-                    out.push(attr);
-                }
-            }
-            return out;
-        };
-
-        const compileXpathExpression = function(s) {
+        var compileXpathExpression = function(s) {
             try {
                 document.createExpression(s, null);
             } catch (e) {
@@ -263,13 +217,13 @@
         };
 
         // https://github.com/gorhill/uBlock/issues/2793
-        const normalizedOperators = new Map([
+        var normalizedOperators = new Map([
             [ ':-abp-contains', ':has-text' ],
             [ ':-abp-has', ':has' ],
             [ ':contains', ':has-text' ],
         ]);
 
-        const compileArgument = new Map([
+        var compileArgument = new Map([
             [ ':has', compileConditionalSelector ],
             [ ':has-text', compileText ],
             [ ':if', compileConditionalSelector ],
@@ -277,9 +231,6 @@
             [ ':matches-css', compileCSSDeclaration ],
             [ ':matches-css-after', compileCSSDeclaration ],
             [ ':matches-css-before', compileCSSDeclaration ],
-            [ ':not', compileNotSelector ],
-            [ ':spath', compileSpathExpression ],
-            [ ':watch-attrs', compileAttrList ],
             [ ':xpath', compileXpathExpression ]
         ]);
 
@@ -290,18 +241,18 @@
         //   to other blockers.
         //   The normalized string version is what is reported in the logger,
         //   by design.
-        const decompile = function(compiled) {
-            const tasks = compiled.tasks;
+        var decompile = function(compiled) {
+            var tasks = compiled.tasks;
             if ( Array.isArray(tasks) === false ) {
                 return compiled.selector;
             }
-            const raw = [ compiled.selector ];
-            let value;
-            for ( const task of tasks ) {
+            var raw = [ compiled.selector ],
+                value;                
+            for ( var i = 0, n = tasks.length, task; i < n; i++ ) {
+                task = tasks[i];
                 switch ( task[0] ) {
-                case ':has':
-                case ':if':
-                    raw.push(':has', '(', decompile(task[1]), ')');
+                case ':xpath':
+                    raw.push(task[0], '(', task[1], ')');
                     break;
                 case ':has-text':
                     if ( Array.isArray(task[1]) ) {
@@ -327,29 +278,26 @@
                     }
                     raw.push(task[0], '(', task[1].name, ': ', value, ')');
                     break;
-                case ':not':
-                case ':if-not':
-                    raw.push(':not', '(', decompile(task[1]), ')');
+                case ':has':
+                case ':if':
+                    raw.push(':has', '(', decompile(task[1]), ')');
                     break;
-                case ':spath':
-                case ':watch-attrs':
-                case ':xpath':
-                    raw.push(task[0], '(', task[1], ')');
+                case ':if-not':
+                    raw.push(task[0], '(', decompile(task[1]), ')');
                     break;
                 }
             }
             return raw.join('');
         };
 
-        const compile = function(raw) {
+        var compile = function(raw) {
             if ( raw === '' ) { return; }
-            let prefix = '',
+            var prefix = '',
                 tasks = [];
-            let i = 0,
-                n = raw.length,
-                opPrefixBeg = 0;
             for (;;) {
-                let c, match;
+                var i = 0,
+                    n = raw.length,
+                    c, match;
                 // Advance to next operator.
                 while ( i < n ) {
                     c = raw.charCodeAt(i++);
@@ -359,14 +307,14 @@
                     }
                 }
                 if ( i === n ) { break; }
-                const opNameBeg = i - 1;
-                const opNameEnd = i + match[0].length - 1;
+                var opNameBeg = i - 1;
+                var opNameEnd = i + match[0].length - 1;
                 i += match[0].length;
                 // Find end of argument: first balanced closing parenthesis.
                 // Note: unbalanced parenthesis can be used in a regex literal
                 // when they are escaped using `\`.
                 // TODO: need to handle quoted parentheses.
-                let pcnt = 1;
+                var pcnt = 1;
                 while ( i < n ) {
                     c = raw.charCodeAt(i++);
                     if ( c === 0x5C /* '\\' */ ) {
@@ -381,29 +329,19 @@
                 // Unbalanced parenthesis? An unbalanced parenthesis is fine
                 // as long as the last character is a closing parenthesis.
                 if ( pcnt !== 0 && c !== 0x29 ) { return; }
-                // https://github.com/uBlockOrigin/uBlock-issues/issues/341#issuecomment-447603588
-                //   Maybe that one operator is a valid CSS selector and if so,
-                //   then consider it to be part of the prefix. If there is
-                //   at least one task present, then we fail, as we do not
-                //   support suffix CSS selectors.
-                if ( isValidCSSSelector(raw.slice(opNameBeg, i)) ) { continue; }
                 // Extract and remember operator details.
-                let operator = raw.slice(opNameBeg, opNameEnd);
+                var operator = raw.slice(opNameBeg, opNameEnd);
                 operator = normalizedOperators.get(operator) || operator;
-                let args = raw.slice(opNameEnd + 1, i - 1);
+                var args = raw.slice(opNameEnd + 1, i - 1);
                 args = compileArgument.get(operator)(args);
                 if ( args === undefined ) { return; }
-                if ( opPrefixBeg === 0 ) {
+                if ( tasks.length === 0 ) {
                     prefix = raw.slice(0, opNameBeg);
-                } else if ( opNameBeg !== opPrefixBeg ) {
-                    const spath = compileSpathExpression(
-                        raw.slice(opPrefixBeg, opNameBeg)
-                    );
-                    if ( spath === undefined ) { return; }
-                    tasks.push([ ':spath', spath ]);
+                } else if ( opNameBeg !== 0 ) {
+                    return;
                 }
                 tasks.push([ operator, args ]);
-                opPrefixBeg = i;
+                raw = raw.slice(i);
                 if ( i === n ) { break; }
             }
             // No task found: then we have a CSS selector.
@@ -411,10 +349,8 @@
             if ( tasks.length === 0 ) {
                 prefix = raw;
                 tasks = undefined;
-            } else if ( opPrefixBeg < n ) {
-                const spath = compileSpathExpression(raw.slice(opPrefixBeg));
-                if ( spath === undefined ) { return; }
-                tasks.push([ ':spath', spath ]);
+            } else if ( raw.length !== 0 ) {
+                return;
             }
             // https://github.com/NanoAdblocker/NanoCore/issues/1#issuecomment-354394894
             if ( prefix !== '' ) {
@@ -424,12 +360,12 @@
             return { selector: prefix, tasks: tasks };
         };
 
-        const entryPoint = function(raw) {
+        var entryPoint = function(raw) {
             if ( raw === lastProceduralSelector ) {
                 return lastProceduralSelectorCompiled;
             }
             lastProceduralSelector = raw;
-            let compiled = compile(raw);
+            var compiled = compile(raw);
             if ( compiled !== undefined ) {
                 compiled.raw = decompile(compiled);
                 compiled = JSON.stringify(compiled);
@@ -439,7 +375,7 @@
         };
 
         entryPoint.reset = function() {
-            regexToRawValue.clear();
+            regexToRawValue = new Map();
             lastProceduralSelector = '';
             lastProceduralSelectorCompiled = undefined;
         };
@@ -451,18 +387,7 @@
     // Public API
     //--------------------------------------------------------------------------
 
-    const api = {
-        get acceptedCount() {
-            return µb.cosmeticFilteringEngine.acceptedCount +
-                   µb.scriptletFilteringEngine.acceptedCount +
-                   µb.htmlFilteringEngine.acceptedCount;
-        },
-        get discardedCount() {
-            return µb.cosmeticFilteringEngine.discardedCount +
-                   µb.scriptletFilteringEngine.discardedCount +
-                   µb.htmlFilteringEngine.discardedCount;
-        }
-    };
+    var api = {};
 
     //--------------------------------------------------------------------------
     // Public classes
@@ -501,9 +426,7 @@
                 bucket = [ bucket ];
             }
             for ( let entry of bucket ) {
-                if ( hostname.endsWith(entry.hostname) === false ) {
-                    continue;
-                }
+                if ( hostname.endsWith(entry.hostname) === false ) { continue; }
                 let i = hostname.length - entry.hostname.length;
                 if (
                     i === 0 ||
@@ -523,12 +446,12 @@
     };
 
     api.HostnameBasedDB.prototype[Symbol.iterator] = (function() {
-        const Iter = function(db) {
+        var Iter = function(db) {
             this.mapIter = db.values();
             this.arrayIter = undefined;
         };
         Iter.prototype.next = function() {
-            let result;
+            var result;
             if ( this.arrayIter !== undefined ) {
                 result = this.arrayIter.next();
                 if ( result.done === false ) { return result; }
@@ -575,11 +498,11 @@
         // Based on: FNV32a
         // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-reference-source
         // The rest is custom, suited for uBlock.
-        const i1 = token.length;
+        let i1 = token.length;
         if ( i1 === 0 ) { return 0; }
-        const i2 = i1 >> 1;
-        const i4 = i1 >> 2;
-        const i8 = i1 >> 3;
+        let i2 = i1 >> 1;
+        let i4 = i1 >> 2;
+        let i8 = i1 >> 3;
         let hval = (0x811c9dc5 ^ token.charCodeAt(0)) >>> 0;
         hval += (hval<<1) + (hval<<4) + (hval<<7) + (hval<<8) + (hval<<24);
         hval >>>= 0;
@@ -612,10 +535,10 @@
     api.compileHostnameToHash = function(hostname) {
         let domain;
         if ( hostname.endsWith('.*') ) {
-            const pos = hostname.lastIndexOf('.', hostname.length - 3);
+            let pos = hostname.lastIndexOf('.', hostname.length - 3);
             domain = pos !== -1 ? hostname.slice(pos + 1) : hostname;
         } else {
-            domain = µb.URI.domainFromHostname(hostname);
+            domain = µb.URI.domainFromHostnameNoCache(hostname);
         }
         return api.makeHash(domain);
     };
@@ -634,14 +557,14 @@
     //   Do not discard unknown pseudo-elements.
 
     api.compileSelector = (function() {
-        const reAfterBeforeSelector = /^(.+?)(::?after|::?before|::[a-z-]+)$/;
-        const reStyleSelector = /^(.+?):style\((.+?)\)$/;
-        const reStyleBad = /url\(/;
-        const reExtendedSyntax = /\[-(?:abp|ext)-[a-z-]+=(['"])(?:.+?)(?:\1)\]/;
-        const reExtendedSyntaxParser = /\[-(?:abp|ext)-([a-z-]+)=(['"])(.+?)\2\]/;
-        const div = document.createElement('div');
+        var reAfterBeforeSelector = /^(.+?)(::?after|::?before|::[a-z-]+)$/,
+            reStyleSelector = /^(.+?):style\((.+?)\)$/,
+            reStyleBad = /url\([^)]+\)/,
+            reExtendedSyntax = /\[-(?:abp|ext)-[a-z-]+=(['"])(?:.+?)(?:\1)\]/,
+            reExtendedSyntaxParser = /\[-(?:abp|ext)-([a-z-]+)=(['"])(.+?)\2\]/,
+            div = document.createElement('div');
 
-        const normalizedExtendedSyntaxOperators = new Map([
+        var normalizedExtendedSyntaxOperators = new Map([
             [ 'contains', ':has-text' ],
             [ 'has', ':has' ],
             [ 'matches-css', ':matches-css' ],
@@ -649,7 +572,7 @@
             [ 'matches-css-before', ':matches-css-before' ],
         ]);
 
-        const isValidStyleProperty = function(cssText) {
+        var isValidStyleProperty = function(cssText) {
             if ( reStyleBad.test(cssText) ) { return false; }
             div.style.cssText = cssText;
             if ( div.style.cssText === '' ) { return false; }
@@ -657,8 +580,8 @@
             return true;
         };
 
-        const entryPoint = function(raw) {
-            const extendedSyntax = reExtendedSyntax.test(raw);
+        var entryPoint = function(raw) {
+            var extendedSyntax = reExtendedSyntax.test(raw);
             if ( isValidCSSSelector(raw) && extendedSyntax === false ) {
                 return raw;
             }
@@ -666,7 +589,7 @@
             // We  rarely reach this point -- majority of selectors are plain
             // CSS selectors.
 
-            let matches, operator;
+            var matches, operator;
 
             // Supported Adguard/ABP advanced selector syntax: will translate into
             // uBO's syntax before further processing.
@@ -686,7 +609,7 @@
                 return entryPoint(raw);
             }
 
-            let selector = raw,
+            var selector = raw,
                 pseudoclass, style;
 
             // `:style` selector?
@@ -723,10 +646,16 @@
             }
 
             // Procedural selector?
-            let compiled;
+            var compiled;
             if ( (compiled = compileProceduralSelector(raw)) ) {
                 return compiled;
             }
+
+            µb.logger.writeOne(
+                '',
+                'error',
+                'Cosmetic filtering – invalid filter: ' + raw
+            );
         };
 
         return entryPoint;
@@ -782,7 +711,11 @@
         if ( lpos === 0 ) {
             parsed.hostnames = emptyArray;
         } else {
-            parsed.hostnames = hostnamesFromPrefix(raw.slice(0, lpos));
+            let prefix = raw.slice(0, lpos);
+            parsed.hostnames = prefix.split(reHostnameSeparator);
+            if ( reHasUnicode.test(prefix) ) {
+                toASCIIHostnames(parsed.hostnames);
+            }
         }
 
         // Backward compatibility with deprecated syntax.
@@ -821,30 +754,35 @@
         µb.htmlFilteringEngine.fromCompiledContent(reader, options);
     };
 
-    api.toSelfie = function(path) {
-        return µBlock.assets.put(
-            `${path}/main`,
-            JSON.stringify({
-                cosmetic: µb.cosmeticFilteringEngine.toSelfie(),
-                scriptlets: µb.scriptletFilteringEngine.toSelfie(),
-                html: µb.htmlFilteringEngine.toSelfie()
-            })
-        );
+    api.toSelfie = function() {
+        return {
+            cosmetic: µb.cosmeticFilteringEngine.toSelfie(),
+            scriptlets: µb.scriptletFilteringEngine.toSelfie(),
+            html: µb.htmlFilteringEngine.toSelfie()
+        };
     };
 
-    api.fromSelfie = function(path) {
-        return µBlock.assets.get(`${path}/main`).then(details => {
-            let selfie;
-            try {
-                selfie = JSON.parse(details.content);
-            } catch (ex) {
+    Object.defineProperties(api, {
+        acceptedCount: {
+            get: function() {
+                return µb.cosmeticFilteringEngine.acceptedCount +
+                       µb.scriptletFilteringEngine.acceptedCount +
+                       µb.htmlFilteringEngine.acceptedCount;
             }
-            if ( selfie instanceof Object === false ) { return false; }
-            µb.cosmeticFilteringEngine.fromSelfie(selfie.cosmetic);
-            µb.scriptletFilteringEngine.fromSelfie(selfie.scriptlets);
-            µb.htmlFilteringEngine.fromSelfie(selfie.html);
-            return true;
-        });
+        },
+        discardedCount: {
+            get: function() {
+                return µb.cosmeticFilteringEngine.discardedCount +
+                       µb.scriptletFilteringEngine.discardedCount +
+                       µb.htmlFilteringEngine.discardedCount;
+            }
+        }
+    });
+
+    api.fromSelfie = function(selfie) {
+        µb.cosmeticFilteringEngine.fromSelfie(selfie.cosmetic);
+        µb.scriptletFilteringEngine.fromSelfie(selfie.scriptlets);
+        µb.htmlFilteringEngine.fromSelfie(selfie.html);
     };
 
     return api;

@@ -1,5 +1,6 @@
 body {
-    background-color: #fff;
+    /* background-color: #fff; */
+    background-color: transparent;
     box-sizing: border-box;
     color: #000;
     margin: 0;
@@ -27,8 +28,9 @@ a {
     text-decoration: none;
     }
 a.info {
-    color: black;
+    color: #343434;
     opacity: 0.3;
+    vertical-align: middle;
     }
 a.info:hover {
     opacity: 0.9
@@ -58,7 +60,7 @@ input[type="checkbox"][disabled] + label {
     padding: 0 0 4px 0;
     width: 16px;
     height: 16px;
-    background: url('../img/help16.png') no-repeat;
+    /* background: url('../img/help16.png') no-repeat; */
     cursor: pointer;
     opacity: 0.5;
     vertical-align: middle;
@@ -67,13 +69,24 @@ input[type="checkbox"][disabled] + label {
     opacity: 1.0;
     }
 .whatisthis-expandable {
-    margin: 0.5em 0 1em 1.25em;
+    /* margin: 0.5em 0 1em 1.25em;
     padding: 0.5em;
     display: none;
     border: 1px dotted black;
     background-color: #F8F8F8;
     font-size: 13px;
+    white-space: pre-line; */
+
+    padding: 16px;
+    display: none;
+    border: 1px dotted #dfdfdf;
+    background-color: #ffffff;
+    font-size: 13px;
     white-space: pre-line;
+    float: left;
+    width: 100%;
+    transition: .5s all ease-in;
+
     }
 .whatisthis-expandable > p {
     margin-top: 1em;

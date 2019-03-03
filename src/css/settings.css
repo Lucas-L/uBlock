@@ -26,9 +26,16 @@ ul#userSettings .subgroup > span {
 #advanced-user-enabled ~ a.fa {
     display: none;
     }
-body.advancedUser #advanced-user-enabled ~ a.fa {
+/* body.advancedUser #advanced-user-enabled ~ a.fa {
+    display: inline;
+    } */
+body.advancedUser #settingsAdvancedUser > a.fa {
     display: inline;
     }
+
+ #settingsAdvancedUser > a.fa {
+        display: none;
+        }
 #localData > ul > li {
     margin-top: 1em;
     }

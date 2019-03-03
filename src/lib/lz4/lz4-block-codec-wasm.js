@@ -48,7 +48,7 @@
 
 /******************************************************************************/
 
-const wd = (function() {
+let wd = (function() {
     let url = document.currentScript.src;
     let match = /[^\/]+$/.exec(url);
     return match !== null ?
@@ -56,7 +56,7 @@ const wd = (function() {
         '';
 })();
 
-const growMemoryTo = function(wasmInstance, byteLength) {
+let growMemoryTo = function(wasmInstance, byteLength) {
     let lz4api = wasmInstance.exports;
     let neededByteLength = lz4api.getLinearMemoryOffset() + byteLength;
     let pageCountBefore = lz4api.memory.buffer.byteLength >>> 16;
@@ -67,7 +67,7 @@ const growMemoryTo = function(wasmInstance, byteLength) {
     return lz4api.memory.buffer;
 };
 
-const encodeBlock = function(wasmInstance, inputArray, outputOffset) {
+let encodeBlock = function(wasmInstance, inputArray, outputOffset) {
     let lz4api = wasmInstance.exports;
     let mem0 = lz4api.getLinearMemoryOffset();
     let hashTableSize = 65536 * 4;
@@ -96,7 +96,7 @@ const encodeBlock = function(wasmInstance, inputArray, outputOffset) {
     return outputArray;
 };
 
-const decodeBlock = function(wasmInstance, inputArray, inputOffset, outputSize) {
+let decodeBlock = function(wasmInstance, inputArray, inputOffset, outputSize) {
     let inputSize = inputArray.byteLength;
     let lz4api = wasmInstance.exports;
     let mem0 = lz4api.getLinearMemoryOffset();
@@ -130,25 +130,24 @@ context.LZ4BlockWASM.prototype = {
             this.lz4wasmInstance = null;
         }
         if ( this.lz4wasmInstance === null ) {
-            return Promise.resolve(false);
+            return Promise.reject();
         }
         if ( this.lz4wasmInstance instanceof WebAssembly.Instance ) {
-            return Promise.resolve(true);
+            return Promise.resolve(this.lz4wasmInstance);
         }
         if ( this.lz4wasmInstance === undefined ) {
-            this.lz4wasmInstance = fetch(
-                wd + 'lz4-block-codec.wasm',
-                { mode: 'same-origin' }
-            ).then(
-                WebAssembly.instantiateStreaming
+            this.lz4wasmInstance = WebAssembly.instantiateStreaming(
+                fetch(wd + 'lz4-block-codec.wasm', { mode: 'same-origin' })
             ).then(result => {
+                this.lz4wasmInstance = undefined;
                 this.lz4wasmInstance = result && result.instance || null;
-            }).catch(reason => {
+                if ( this.lz4wasmInstance !== null ) { return this; }
+                return null;
+            });
+            this.lz4wasmInstance.catch(( ) => {
                 this.lz4wasmInstance = null;
-                console.info(reason);
-            }).then(( ) =>
-                this.lz4wasmInstance !== null
-            );
+                return null;
+            });
         }
         return this.lz4wasmInstance;
     },

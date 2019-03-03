@@ -12,27 +12,36 @@
 <link rel="stylesheet" type="text/css" href="css/cloud-ui.css">
 <link rel="stylesheet" type="text/css" href="css/dyna-rules.css">
 <link rel="stylesheet" type="text/css" href="css/codemirror.css">
+
+
+ <!-- Load Mobiscroll  -->
+ <script src="/external/mobiscroll/mobiscroll.javascript.min.js"></script>
+ <link href="/external/mobiscroll/mobiscroll.javascript.min.css" rel="stylesheet" type="text/css">
 </head>
 
 <body>
 
 <div class="body">
     <div id="cloudWidget" class="hide" data-cloud-entry="myRulesPane"></div>
-    <p class="vverbose"><span data-i18n="rulesHint"></span> <a class="fa info" href="https://github.com/gorhill/uBlock/wiki/Dynamic-filtering:-rule-syntax" target="_blank">&#xf05a;</a></p>
+    <p class="vverbose"><span data-i18n="rulesHint"></span> <a class="mbsc-ic mbsc-ic-material-info-outline info" href="https://github.com/gorhill/uBlock/wiki/Dynamic-filtering:-rule-syntax" target="_blank"></a></p>
     <div id="diff">
         <div class="tools">
-            <div class="ruleActions">
+            <div class="ruleActions headerButtons">
                 <h3 data-i18n="rulesPermanentHeader"></h3>
-                <button type="button" class="custom iconifiable" id="exportButton"><span class="fa">&#xf093;</span><span data-i18n="rulesExport"></span></button>
-                <button type="button" class="custom iconifiable" id="revertButton"><span class="fa">&#xf061;</span><span data-i18n="rulesRevert"></span></button>
+                <button type="button" class="custom iconifiable buttonsBittube" id="exportButton"><span data-i18n="rulesExport"></span></button>
+                <button type="button" class="custom iconifiable buttonsBittube" id="revertButton"><span data-i18n="rulesRevert"></span></button>
             </div>
-            <div class="ruleActions">
+            <div class="ruleActions headerButtons">
                 <h3 data-i18n="rulesTemporaryHeader"></h3>
-                <button type="button" class="custom iconifiable" id="commitButton"><span class="fa">&#xf060;</span><span data-i18n="rulesCommit"></span></button>
-                <button type="button" class="custom iconifiable" id="importButton"><span class="fa">&#xf019;</span><span data-i18n="rulesImport"></span></button>
-                <button type="button" class="custom iconifiable important disabled" id="editSaveButton"><span class="fa">&#xf0c7;</span><span data-i18n="rulesEditSave"></span></button>
+                <button type="button" class="custom iconifiable buttonsBittube" id="commitButton"><span data-i18n="rulesCommit"></span></button>
+                <button type="button" class="custom iconifiable buttonsBittube" id="importButton"><span data-i18n="rulesImport"></span></button>
+                <button type="button" class="custom iconifiable buttonsBittube important disabled" id="editSaveButton"><span data-i18n="rulesEditSave"></span></button>
             </div>
-            <div id="ruleFilter"><span class="fa">&#xf0b0;</span>&ensp;<input type="text" size="20"></div>
+            <div id="ruleFilter" class="cm-search-widget">
+                <label class="labelSearchRuleFilters">Search</label>
+                <input type="text" class="inputSearchCodeMirror" size="20">
+                <span class="mbsc-ic mbsc-ic-material-filter-list"></span>
+            </div>
         </div>
     </div>
 </div>

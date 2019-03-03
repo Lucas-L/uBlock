@@ -8,7 +8,12 @@
 <link rel="stylesheet" href="lib/codemirror/addon/search/matchesonscrollbar.css">
 <link rel="stylesheet" href="css/common.css">
 <link rel="stylesheet" href="css/codemirror.css">
-<link rel="shortcut icon" type="image/png" href="img/icon_32.png"/>
+<link rel="shortcut icon" type="image/png" href="/assets/images/get_started16.png"/>
+
+<link rel="stylesheet" type="text/css" href="css/styleUblock.css">
+ <!-- Load Mobiscroll  -->
+ <script src="/external/mobiscroll/mobiscroll.javascript.min.js"></script>
+ <link href="/external/mobiscroll/mobiscroll.javascript.min.css" rel="stylesheet" type="text/css">
 <style>
 body {
     border: 0;
@@ -19,16 +24,29 @@ body {
     height: 100vh;
     width: 100vw;
     }
-
-/* https://github.com/uBlockOrigin/uBlock-issues/issues/292 */
-.CodeMirror-wrap pre {
-    word-break: break-all;
-    }
 </style>
 </head>
-<body>
+<body class="bodyAdvancedSettings">
+        <div id="divFullHeader" class="divFullHeader">
+                <!-- DIV LOGO -->
+                <div class="divLogoHeader">
+                    <a class="w-nav-brand brand-box" href="#">
+                        <img src="/assets/images/logo-header.svg" width="150">
+                    </a>
+                </div>
+                <!-- DIV MENU -->
+                <div class="lower-nav-section">
+                    <div class="w-container containerNavbar containerNavAdvancedSettings">
+                       <span style="color: #ffffff;">Asset Viewer</span>
+                   </div>
+                </div>
+        </div>  
 
-<div id="content" class="codeMirrorContainer"></div>
+        <div class="divAdvancedSettings">
+                <div id="content" class="codeMirrorContainer"></div>
+        </div>
+
+
 
 <script src="lib/codemirror/lib/codemirror.js"></script>
 <script src="lib/codemirror/addon/display/panel.js"></script>
