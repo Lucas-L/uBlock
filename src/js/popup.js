@@ -143,14 +143,17 @@ var cachePopupData = function(data) {
 
 const getCurrentFeature = (array) => {
     document.addEventListener("DOMContentLoaded",() => {
+        console.log("Load")
         const allSliderHandle=document.querySelectorAll(".mbsc-slider-handle-cont")
         const allSwitchTrack=document.querySelectorAll(".mbsc-switch-track")
-        
         for(let i =0;i<array.length;i++){
             if(array[i] == true){
                 console.log(i)
                 allSliderHandle[i].style.left='100%'
                 allSwitchTrack[i].classList.add("active")
+            }
+            else{
+                console.log("nothing found")
             }
         }
     })
